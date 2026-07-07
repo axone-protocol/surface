@@ -1,4 +1,10 @@
 extends: default
+ignore: |
+  dist/
+  node_modules/
+  .direnv/
+  pnpm-lock.yaml
+
 rules:
   document-start: disable
   line-length:
