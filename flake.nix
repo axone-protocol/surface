@@ -1,5 +1,5 @@
 {
-  description = "Axone opensource template development environment";
+  description = "Axone Surface development environment";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
@@ -24,21 +24,18 @@
           pkgs = nixpkgs.legacyPackages.${system};
         in
         {
-          # Minimal shell: this repo is a language-agnostic template, so it only
-          # ships the tools needed to run the lints already configured here
-          # (see .markdownlint.yaml, .yamllint.yaml, .codespellrc). Downstream
-          # projects generated from this template are expected to extend this
-          # shell with their own stack-specific tooling.
           default = pkgs.mkShell {
             packages = [
               pkgs.codespell
               pkgs.git
               pkgs.markdownlint-cli2
+              pkgs.nodejs_24
+              pkgs.pnpm
               pkgs.yamllint
             ];
 
             shellHook = ''
-              echo "Axone template-oss development environment loaded"
+              echo "Axone Surface development environment loaded"
             '';
           };
         }
