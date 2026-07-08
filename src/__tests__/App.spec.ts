@@ -1,11 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from "vitest";
 
-import { mount } from '@vue/test-utils'
-import App from '../App.vue'
+import { mount } from "@vue/test-utils";
+import App from "../App.vue";
 
-describe('App', () => {
-  it('mounts renders properly', () => {
-    const wrapper = mount(App)
-    expect(wrapper.text()).toContain('You did it!')
-  })
-})
+describe("App", () => {
+  it("renders the homepage shell", () => {
+    const wrapper = mount(App);
+    expect(wrapper.text()).toContain("AXONE / SURFACE");
+    expect(wrapper.text()).toContain("GOVERN ACT");
+  });
+});
