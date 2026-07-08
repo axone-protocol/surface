@@ -27,4 +27,12 @@ jobs:
           fetch-depth: 0
 
       - name: Check commits
-        uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6
+        run: |
+          invalid_commits="$(git log --format=%s --no-merges origin/main..HEAD | grep -Ev '^(build|ci|docs|feat|fix|perf|refactor|style|test|chore)(\([^)]+\))?: .+$' || true)"
+
+          if [ -n "$invalid_commits" ]; then
+            echo "Commit messages must follow the Conventional Commits format."
+            printf '%s\n' "$invalid_commits"
+            exit 1
+          fi
+        shell: bash
