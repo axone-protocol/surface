@@ -78,7 +78,7 @@ code {
 
 .surface-mark,
 .register-head,
-.source-mark,
+.entry-mark,
 .law-line {
   margin: 0;
   font-size: 0.72rem;
@@ -163,10 +163,6 @@ code {
 
 .is-reduced-motion .polling-dot {
   animation: none;
-}
-
-.is-reduced-motion .inscription-row.is-polling article {
-  transition: none;
 }
 
 .doctrine-hero h1 {
@@ -310,6 +306,7 @@ code {
   counter-increment: register-line;
   position: relative;
   min-width: 0;
+  animation: row-fade 420ms ease both;
 }
 
 .inscription-row::before {
@@ -325,80 +322,66 @@ code {
 .inscription-row article {
   position: relative;
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) minmax(150px, auto);
-  gap: 6px 18px;
-  align-items: baseline;
-  min-height: 78px;
+  gap: 10px;
+  min-height: 90px;
   padding: 13px 0 13px 42px;
   border-bottom: 1px solid var(--surface-line);
 }
 
-.source-mark {
-  color: rgba(240, 234, 220, 0.24);
-}
-
-.inscription-row.is-chain .source-mark {
+.entry-mark {
   color: var(--surface-gold);
 }
 
-.inscription-row.is-surface .source-mark {
-  color: rgba(240, 234, 220, 0.18);
+.entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 0;
+  color: var(--surface-dim);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.74rem;
+  line-height: 1.4;
 }
 
-.line-body {
+.entry-meta span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: baseline;
   min-width: 0;
+}
+
+.entry-meta em {
+  color: var(--surface-muted);
+  font-style: normal;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.entry-meta code {
+  color: var(--surface-code);
+  font-size: 1em;
+}
+
+.entry-subject {
+  margin: 0;
   color: var(--surface-text);
-  font-size: clamp(0.92rem, 1.35vw, 1.08rem);
+  font-size: clamp(0.98rem, 1.4vw, 1.1rem);
   font-weight: 560;
-  line-height: 1.45;
+  line-height: 1.4;
   overflow-wrap: anywhere;
-  word-break: break-word;
   text-transform: uppercase;
 }
 
-.critical-link {
-  display: block;
-  min-width: 0;
-  justify-self: end;
-  max-width: 220px;
-  color: var(--surface-code);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-  text-decoration: underline;
-  text-decoration-color: rgba(197, 167, 102, 0.32);
-  text-underline-offset: 4px;
-}
-
-.reference-line {
-  display: block;
-  grid-column: 2 / -1;
-  min-width: 0;
+.entry-event {
+  margin: 0;
   color: var(--surface-muted);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.78rem;
-  line-height: 1.35;
+  font-size: 0.92rem;
+  line-height: 1.5;
   overflow-wrap: anywhere;
-  white-space: normal;
 }
 
-.critical-link:hover,
-.critical-link:focus-visible {
-  color: var(--surface-gold);
-  outline: none;
-  text-decoration-color: var(--surface-gold);
-}
-
-.line-time {
-  grid-column: 2 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 9px;
-  color: var(--surface-dim);
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-  font-size: 0.72rem;
-  line-height: 1.35;
+.is-reduced-motion .inscription-row {
+  animation: none;
 }
 
 .polling-status {
@@ -517,6 +500,18 @@ code {
   }
 }
 
+@keyframes row-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 760px) {
   .surface-document {
     width: min(100%, calc(100% - 24px));
@@ -553,24 +548,13 @@ code {
   }
 
   .inscription-row article {
-    grid-template-columns: 52px minmax(0, 1fr);
-    gap: 5px 12px;
     padding-left: 32px;
+    gap: 8px;
   }
 
-  .source-mark {
-    grid-column: 1 / -1;
-  }
-
-  .line-body {
-    grid-column: 1 / -1;
-  }
-
-  .critical-link,
-  .reference-line,
-  .line-time {
-    grid-column: 1 / -1;
-    justify-self: start;
+  .entry-meta {
+    gap: 6px 10px;
+    font-size: 0.7rem;
   }
 
   .polling-status {
