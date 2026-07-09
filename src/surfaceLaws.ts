@@ -16,7 +16,7 @@ export const surfaceLaws: SurfaceLaw[] = [
     id: "law-ii",
     number: "II",
     title: "Primacy of the Act",
-    paraphrase: "Your act is what becomes qualified.",
+    paraphrase: "Your event is what becomes qualified.",
   },
   {
     id: "law-iii",
