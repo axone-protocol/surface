@@ -31,6 +31,9 @@
               pkgs.markdownlint-cli2
               pkgs.nodejs_24
               pkgs.pnpm
+              pkgs.python3
+              pkgs.rtk
+              pkgs.shellcheck
               pkgs.yamllint
             ];
 
