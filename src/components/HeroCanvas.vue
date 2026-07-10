@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Application, Graphics } from 'pixi.js'
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
@@ -9,10 +10,15 @@ const props = defineProps<{
 }>()
 
 const mount = ref<HTMLDivElement | null>(null)
-const canvas = ref<HTMLCanvasElement | null>(null)
 
 let animationFrame: number | undefined
 let resizeObserver: ResizeObserver | undefined
+let application: Application | undefined
+let background: Graphics | undefined
+let texture: Graphics | undefined
+let inscriptions: Graphics | undefined
+let seals: Graphics | undefined
+let cursor: Graphics | undefined
 let elapsed = 0
 let lastSealCount = 0
 let sealPulse = 0
@@ -20,6 +26,7 @@ let lastFrameTime = 0
 let running = false
 let width = 0
 let height = 0
+let destroyed = false
 
 function seededRandom(seed: number) {
   const x = Math.sin(seed * 12.9898) * 43758.5453
@@ -31,68 +38,63 @@ function lawAccent(index: number): string {
   return accents[Math.max(0, index) % accents.length] ?? '#ded8c6'
 }
 
-function resizeCanvas() {
+function resizeRenderer() {
   const el = mount.value
-  const node = canvas.value
-  if (!el || !node) {
+  if (!el || !application) {
     return
   }
 
   const rect = el.getBoundingClientRect()
   width = Math.max(1, Math.floor(rect.width))
   height = Math.max(1, Math.floor(rect.height))
-  const ratio = Math.min(window.devicePixelRatio || 1, 2)
-  node.width = Math.floor(width * ratio)
-  node.height = Math.floor(height * ratio)
-  node.style.width = `${width}px`
-  node.style.height = `${height}px`
-
-  const context = node.getContext('2d')
-  if (context) {
-    context.setTransform(ratio, 0, 0, ratio, 0, 0)
-  }
+  application.renderer.resize(width, height)
 
   draw()
 }
 
-function clear(context: CanvasRenderingContext2D) {
-  context.fillStyle = '#070504'
-  context.fillRect(0, 0, width, height)
+function drawBackground() {
+  background?.clear().rect(0, 0, width, height).fill('#070504')
 }
 
-function drawTexture(context: CanvasRenderingContext2D) {
-  context.save()
-  context.strokeStyle = '#ded8c6'
-  context.lineWidth = 1
+function drawTexture() {
+  texture?.clear()
+  if (!texture) {
+    return
+  }
 
   const lineCount = width < 700 ? 18 : 28
   for (let index = 0; index < lineCount; index += 1) {
     const y = height * (0.08 + seededRandom(index + 8) * 0.84)
     const x = width * (0.04 + seededRandom(index + 22) * 0.82)
     const length = width * (0.04 + seededRandom(index + 31) * 0.16)
-    context.globalAlpha = 0.018 + seededRandom(index + 44) * 0.036
-    context.strokeStyle = index % 7 === 0 ? '#c5a766' : '#ded8c6'
-    context.beginPath()
-    context.moveTo(x, y)
-    context.lineTo(Math.min(width * 0.96, x + length), y)
-    context.stroke()
+    texture
+      .moveTo(x, y)
+      .lineTo(Math.min(width * 0.96, x + length), y)
+      .stroke({
+        color: index % 7 === 0 ? '#c5a766' : '#ded8c6',
+        alpha: 0.018 + seededRandom(index + 44) * 0.036,
+        width: 1,
+      })
   }
 
   for (let index = 0; index < 84; index += 1) {
     const x = seededRandom(index + 100) * width
     const y = seededRandom(index + 200) * height
     const radius = 0.7 + seededRandom(index + 400) * 1.2
-    context.globalAlpha = 0.018 + seededRandom(index + 300) * 0.026
-    context.fillStyle = '#ded8c6'
-    context.beginPath()
-    context.arc(x, y, radius, 0, Math.PI * 2)
-    context.fill()
+    texture.circle(x, y, radius).fill({
+      color: '#ded8c6',
+      alpha: 0.018 + seededRandom(index + 300) * 0.026,
+    })
   }
-
-  context.restore()
 }
 
-function drawInscriptions(context: CanvasRenderingContext2D, time: number) {
+function drawInscriptions(time: number) {
+  const graphics = inscriptions
+  if (!graphics) {
+    return
+  }
+  graphics.clear()
+
   const accent = lawAccent(props.activeLawIndex)
   const selectedAccent = accent
   const left = width * 0.09
@@ -101,76 +103,81 @@ function drawInscriptions(context: CanvasRenderingContext2D, time: number) {
   const bottom = height * 0.9
   const columns = width < 900 ? [0.08, 0.92] : [0.09, 0.91]
 
-  context.save()
-  context.lineWidth = 1
-
   columns.forEach((ratio, index) => {
     const x = width * ratio
-    context.globalAlpha = index === 0 || index === columns.length - 1 ? 0.06 : 0.035
-    context.strokeStyle = '#ded8c6'
-    context.beginPath()
-    context.moveTo(x, top)
-    context.lineTo(x, bottom)
-    context.stroke()
+    graphics
+      .moveTo(x, top)
+      .lineTo(x, bottom)
+      .stroke({
+        color: '#ded8c6',
+        alpha: index === 0 || index === columns.length - 1 ? 0.06 : 0.035,
+        width: 1,
+      })
   })
 
   for (let index = 0; index < 10; index += 1) {
     const y = top + ((bottom - top) / 9) * index
     const drift = props.reducedMotion ? 0 : Math.sin(time * 0.16 + index * 1.7) * 1.8
-    context.globalAlpha = index % 3 === 0 ? 0.054 : 0.026
-    context.strokeStyle = index === props.activeLawIndex + 2 ? selectedAccent : '#ded8c6'
-    context.beginPath()
-    context.moveTo(left, y + drift)
-    context.lineTo(right, y + drift)
-    context.stroke()
+    graphics
+      .moveTo(left, y + drift)
+      .lineTo(right, y + drift)
+      .stroke({
+        color: index === props.activeLawIndex + 2 ? selectedAccent : '#ded8c6',
+        alpha: index % 3 === 0 ? 0.054 : 0.026,
+        width: 1,
+      })
   }
 
   for (let index = 0; index < 6; index += 1) {
     const y = height * (0.18 + index * 0.1)
     const x = width * (0.14 + seededRandom(index + 61) * 0.42)
     const widthFragment = width * (0.08 + seededRandom(index + 81) * 0.16)
-    context.globalAlpha = 0.08
-    context.fillStyle = index === props.activeLawIndex ? selectedAccent : '#ded8c6'
-    context.fillRect(x, y, widthFragment, 1)
-    context.globalAlpha = 0.045
-    context.fillStyle = '#ded8c6'
-    context.fillRect(x, y + 8, widthFragment * 0.48, 1)
+    graphics.rect(x, y, widthFragment, 1).fill({
+      color: index === props.activeLawIndex ? selectedAccent : '#ded8c6',
+      alpha: 0.08,
+    })
+    graphics.rect(x, y + 8, widthFragment * 0.48, 1).fill({ color: '#ded8c6', alpha: 0.045 })
   }
-
-  context.restore()
 }
 
-function drawSeals(context: CanvasRenderingContext2D) {
+function drawSeals() {
+  seals?.clear()
+  if (!seals) {
+    return
+  }
+
   const accent = lawAccent(props.activeLawIndex)
   const centerX = width < 900 ? width * 0.78 : width * 0.74
   const centerY = width < 900 ? height * 0.18 : height * 0.74
   const pulse = props.reducedMotion ? 0 : sealPulse
   const radius = 16 + Math.min(props.sealedCount, 8) * 2.4 + pulse * 10
 
-  context.save()
-  context.lineWidth = 1
-  context.strokeStyle = accent
-  context.globalAlpha = 0.1 + pulse * 0.18
-  context.beginPath()
-  context.arc(centerX, centerY, radius, 0, Math.PI * 2)
-  context.stroke()
-
-  context.globalAlpha = 0.07 + pulse * 0.12
-  context.strokeStyle = '#ded8c6'
-  context.beginPath()
-  context.arc(centerX, centerY, radius * 0.58, 0, Math.PI * 2)
-  context.stroke()
-
-  context.globalAlpha = 0.08 + pulse * 0.14
-  context.strokeStyle = accent
-  context.beginPath()
-  context.moveTo(centerX - radius * 0.72, centerY)
-  context.lineTo(centerX + radius * 0.72, centerY)
-  context.stroke()
-  context.restore()
+  seals.circle(centerX, centerY, radius).stroke({
+    color: accent,
+    alpha: 0.1 + pulse * 0.18,
+    width: 1,
+  })
+  seals.circle(centerX, centerY, radius * 0.58).stroke({
+    color: '#ded8c6',
+    alpha: 0.07 + pulse * 0.12,
+    width: 1,
+  })
+  seals
+    .moveTo(centerX - radius * 0.72, centerY)
+    .lineTo(centerX + radius * 0.72, centerY)
+    .stroke({
+      color: accent,
+      alpha: 0.08 + pulse * 0.14,
+      width: 1,
+    })
 }
 
-function drawCursor(context: CanvasRenderingContext2D, time: number) {
+function drawCursor(time: number) {
+  cursor?.clear()
+  if (!cursor) {
+    return
+  }
+
   const accent = lawAccent(props.activeLawIndex)
   const baseX = width < 900 ? width * 0.86 : width * 0.88
   const baseY = width < 900 ? height * 0.72 : height * 0.82
@@ -179,28 +186,27 @@ function drawCursor(context: CanvasRenderingContext2D, time: number) {
     ? travel
     : travel + Math.sin(time * 2.2) * (props.pollingActive ? 2 : 0.8)
 
-  context.save()
-  context.fillStyle = accent
-  context.globalAlpha = props.pollingActive ? 0.58 : 0.26
-  context.fillRect(baseX + motion, baseY, 2, 42)
-  context.globalAlpha = props.pollingActive ? 0.3 : 0.12
-  context.fillRect(baseX + motion - 14, baseY + 20, 28, 1)
-  context.restore()
+  cursor.rect(baseX + motion, baseY, 2, 42).fill({
+    color: accent,
+    alpha: props.pollingActive ? 0.58 : 0.26,
+  })
+  cursor.rect(baseX + motion - 14, baseY + 20, 28, 1).fill({
+    color: accent,
+    alpha: props.pollingActive ? 0.3 : 0.12,
+  })
 }
 
 function draw() {
-  const node = canvas.value
-  const context = node?.getContext('2d')
-  if (!node || !context) {
+  if (!application || !background || !texture || !inscriptions || !seals || !cursor) {
     return
   }
 
   const time = props.reducedMotion ? 0 : elapsed
-  clear(context)
-  drawTexture(context)
-  drawInscriptions(context, time)
-  drawSeals(context)
-  drawCursor(context, time)
+  drawBackground()
+  drawTexture()
+  drawInscriptions(time)
+  drawSeals()
+  drawCursor(time)
 }
 
 function stopAnimation() {
@@ -265,28 +271,59 @@ watch(
   },
 )
 
-onMounted(() => {
+onMounted(async () => {
+  const renderer = new Application()
+  await renderer.init({
+    antialias: true,
+    autoDensity: true,
+    backgroundAlpha: 0,
+    height: 1,
+    resolution: Math.min(window.devicePixelRatio || 1, 2),
+    width: 1,
+  })
+
+  if (destroyed || !mount.value) {
+    renderer.destroy()
+    return
+  }
+
+  application = renderer
+  background = new Graphics()
+  texture = new Graphics()
+  inscriptions = new Graphics()
+  seals = new Graphics()
+  cursor = new Graphics()
+  application.stage.addChild(background, texture, inscriptions, seals, cursor)
+  application.canvas.setAttribute('aria-hidden', 'true')
+  mount.value.append(application.canvas)
+
   const observer = window.ResizeObserver
   if (observer) {
-    resizeObserver = new observer(() => resizeCanvas())
+    resizeObserver = new observer(() => resizeRenderer())
   }
   if (mount.value) {
     resizeObserver?.observe(mount.value)
   }
 
-  resizeCanvas()
+  resizeRenderer()
   draw()
   startAnimation()
 })
 
 onBeforeUnmount(() => {
+  destroyed = true
   stopAnimation()
   resizeObserver?.disconnect()
+  application?.destroy()
+  application = undefined
+  background = undefined
+  texture = undefined
+  inscriptions = undefined
+  seals = undefined
+  cursor = undefined
 })
 </script>
 
 <template>
-  <div ref="mount" class="surface-canvas" aria-hidden="true">
-    <canvas ref="canvas" />
-  </div>
+  <div ref="mount" class="surface-canvas" aria-hidden="true" />
 </template>
