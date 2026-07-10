@@ -3,6 +3,7 @@
 > ◌ governed situations - made readable
 
 [![lint](https://img.shields.io/github/actions/workflow/status/axone-protocol/surface/lint-commits.yml?branch=main&label=lint&style=for-the-badge&logo=github)](https://github.com/axone-protocol/surface/actions/workflows/lint-commits.yml)
+[![build](https://img.shields.io/github/actions/workflow/status/axone-protocol/surface/build.yml?branch=main&label=build&style=for-the-badge&logo=github)](https://github.com/axone-protocol/surface/actions/workflows/build.yml)
 
 [![Built with Nix](https://img.shields.io/badge/Built_With-Nix-5277C3.svg?style=for-the-badge&logo=nixos&logoColor=white)](https://nixos.org/)
 [![Vue 3](https://img.shields.io/badge/Vue-3-42b883.svg?style=for-the-badge&logo=vuedotjs&logoColor=white)](https://vuejs.org/)
