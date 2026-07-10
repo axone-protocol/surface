@@ -1,7 +1,7 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from '@playwright/test'
 
-test("visits the app root url", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.locator("text=AXONE / SURFACE")).toBeVisible();
-  await expect(page.locator("h1")).toHaveText("GOVERN ACT");
-});
+test('visits the app root url', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.locator('text=AXONE / SURFACE')).toBeVisible()
+  await expect(page.locator('h1')).toHaveText('GOVERN ACT')
+})

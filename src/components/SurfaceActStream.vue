@@ -1,103 +1,103 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from "vue";
+import { onBeforeUnmount, ref, watch } from 'vue'
 
-import ChainPollingStatus from "./ChainPollingStatus.vue";
-import SurfaceActItem from "./SurfaceActItem.vue";
-import type { SurfaceAct } from "../domain/surface-act";
+import ChainPollingStatus from './ChainPollingStatus.vue'
+import SurfaceActItem from './SurfaceActItem.vue'
+import type { SurfaceAct } from '../domain/surface-act'
 
 const props = defineProps<{
-  acts: SurfaceAct[];
-  loading: boolean;
-  error?: string;
-  reducedMotion: boolean;
-  polling: boolean;
-  lastSyncLabel?: string;
-  registerSummary?: string;
-}>();
+  acts: SurfaceAct[]
+  loading: boolean
+  error?: string
+  reducedMotion: boolean
+  polling: boolean
+  lastSyncLabel?: string
+  registerSummary?: string
+}>()
 
-const maxVisibleActs = 3;
-const visibleActs = ref<SurfaceAct[]>([]);
-const pendingActs = ref<SurfaceAct[]>([]);
-let drainTimer: number | undefined;
-let drainResolver: (() => void) | undefined;
-let draining = false;
+const maxVisibleActs = 3
+const visibleActs = ref<SurfaceAct[]>([])
+const pendingActs = ref<SurfaceAct[]>([])
+let drainTimer: number | undefined
+let drainResolver: (() => void) | undefined
+let draining = false
 
 function stopDrain() {
-  window.clearTimeout(drainTimer);
-  drainTimer = undefined;
+  window.clearTimeout(drainTimer)
+  drainTimer = undefined
   if (drainResolver) {
-    drainResolver();
-    drainResolver = undefined;
+    drainResolver()
+    drainResolver = undefined
   }
 }
 
 function enqueueMissingActs() {
-  const targetWindow = props.acts.slice(0, maxVisibleActs).reverse();
-  const currentIds = new Set([...visibleActs.value, ...pendingActs.value].map((act) => act.id));
-  const missingActs = targetWindow.filter((act) => !currentIds.has(act.id));
+  const targetWindow = props.acts.slice(0, maxVisibleActs).reverse()
+  const currentIds = new Set([...visibleActs.value, ...pendingActs.value].map((act) => act.id))
+  const missingActs = targetWindow.filter((act) => !currentIds.has(act.id))
 
   if (missingActs.length === 0) {
-    return;
+    return
   }
 
-  pendingActs.value = [...pendingActs.value, ...missingActs];
+  pendingActs.value = [...pendingActs.value, ...missingActs]
   if (!draining) {
-    void drainVisibleActs();
+    void drainVisibleActs()
   }
 }
 
 async function drainVisibleActs() {
   if (draining) {
-    return;
+    return
   }
 
-  draining = true;
+  draining = true
 
   while (pendingActs.value.length > 0) {
-    const next = pendingActs.value[0]!;
-    pendingActs.value = pendingActs.value.slice(1);
-    visibleActs.value = [...visibleActs.value, next].slice(-maxVisibleActs);
+    const next = pendingActs.value[0]!
+    pendingActs.value = pendingActs.value.slice(1)
+    visibleActs.value = [...visibleActs.value, next].slice(-maxVisibleActs)
 
     if (!props.reducedMotion) {
       await new Promise<void>((resolve) => {
-        drainResolver = resolve;
+        drainResolver = resolve
         drainTimer = window.setTimeout(() => {
-          drainResolver = undefined;
-          resolve();
-        }, 1900);
-      });
+          drainResolver = undefined
+          resolve()
+        }, 1900)
+      })
     }
   }
 
-  draining = false;
+  draining = false
 }
 
 watch(
-  () => props.acts.map((act) => act.id).join("|"),
+  () => props.acts.map((act) => act.id).join('|'),
   () => {
-    enqueueMissingActs();
+    enqueueMissingActs()
   },
   { immediate: true },
-);
+)
 
 watch(
   () => props.reducedMotion,
   () => {
     if (props.reducedMotion) {
-      visibleActs.value = props.acts.slice(0, maxVisibleActs).reverse();
-      pendingActs.value = [];
-      stopDrain();
-      draining = false;
-      return;
+      visibleActs.value = props.acts.slice(0, maxVisibleActs).reverse()
+      pendingActs.value = []
+      stopDrain()
+      draining = false
+      return
     }
 
-    enqueueMissingActs();
+    enqueueMissingActs()
   },
-);
+)
 
 onBeforeUnmount(() => {
-  stopDrain();
-});
+  stopDrain()
+})
 </script>
 
 <template>
@@ -108,8 +108,15 @@ onBeforeUnmount(() => {
       </div>
       <div class="surface-act-stream-head-meta">
         <span v-if="registerSummary" class="surface-act-stream-summary">{{ registerSummary }}</span>
-        <span v-if="registerSummary && lastSyncLabel" class="surface-act-stream-separator" aria-hidden="true">·</span>
-        <span v-if="lastSyncLabel" class="surface-act-stream-sync">LAST SYNC {{ lastSyncLabel }}</span>
+        <span
+          v-if="registerSummary && lastSyncLabel"
+          class="surface-act-stream-separator"
+          aria-hidden="true"
+          >·</span
+        >
+        <span v-if="lastSyncLabel" class="surface-act-stream-sync"
+          >LAST SYNC {{ lastSyncLabel }}</span
+        >
       </div>
     </header>
 
@@ -123,17 +130,22 @@ onBeforeUnmount(() => {
       </TransitionGroup>
     </div>
 
-    <div
-      v-else-if="loading"
-      class="surface-act-skeleton"
-      role="status"
-    >
+    <div v-else-if="loading" class="surface-act-skeleton" role="status">
       <ol class="surface-act-skeleton-list">
         <li v-for="n in 3" :key="n" class="surface-act-skeleton-item">
-          <span class="surface-act-skeleton-bar surface-act-skeleton-bar-badge" aria-hidden="true" />
+          <span
+            class="surface-act-skeleton-bar surface-act-skeleton-bar-badge"
+            aria-hidden="true"
+          />
           <span class="surface-act-skeleton-bar surface-act-skeleton-bar-meta" aria-hidden="true" />
-          <span class="surface-act-skeleton-bar surface-act-skeleton-bar-title" aria-hidden="true" />
-          <span class="surface-act-skeleton-bar surface-act-skeleton-bar-description" aria-hidden="true" />
+          <span
+            class="surface-act-skeleton-bar surface-act-skeleton-bar-title"
+            aria-hidden="true"
+          />
+          <span
+            class="surface-act-skeleton-bar surface-act-skeleton-bar-description"
+            aria-hidden="true"
+          />
         </li>
       </ol>
       <p class="sr-only">Reading the chain register…</p>

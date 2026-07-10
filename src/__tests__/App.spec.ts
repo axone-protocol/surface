@@ -1,113 +1,115 @@
-import { mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
-import { flushPromises } from "@vue/test-utils";
+import { mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 
-import App from "../App.vue";
+import App from '../App.vue'
 
-function createEmptyTxList() {
-  return { tx_responses: [] };
+function createCanvasContextMock() {
+  return {
+    setTransform: vi.fn<() => void>(),
+    fillRect: vi.fn<() => void>(),
+    save: vi.fn<() => void>(),
+    restore: vi.fn<() => void>(),
+    beginPath: vi.fn<() => void>(),
+    moveTo: vi.fn<() => void>(),
+    lineTo: vi.fn<() => void>(),
+    stroke: vi.fn<() => void>(),
+    arc: vi.fn<() => void>(),
+    fill: vi.fn<() => void>(),
+  } as unknown as CanvasRenderingContext2D
 }
 
-describe("App", () => {
-  it("renders the live act homepage shell", async () => {
-    const matchMedia = vi.fn().mockImplementation(() => ({
-      matches: true,
-      media: "(prefers-reduced-motion: reduce)",
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }));
+function createMatchMediaMock(matches: boolean) {
+  return vi.fn<() => MediaQueryList>().mockImplementation(() => ({
+    matches,
+    media: '(prefers-reduced-motion: reduce)',
+    onchange: null,
+    addEventListener: vi.fn<() => void>(),
+    removeEventListener: vi.fn<() => void>(),
+    dispatchEvent: vi.fn<() => boolean>(),
+    addListener: vi.fn<() => void>(),
+    removeListener: vi.fn<() => void>(),
+  }))
+}
 
-    const fetchMock = vi.fn().mockImplementation(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => createEmptyTxList(),
-    }));
+function createEmptyTxList() {
+  return { tx_responses: [] }
+}
 
-    Object.defineProperty(window, "matchMedia", {
+function createResponse(body: unknown, ok = true, status = 200): Response {
+  return {
+    ok,
+    status,
+    json: async () => body,
+  } as unknown as Response
+}
+
+describe('App', () => {
+  it('renders the live act homepage shell', async () => {
+    const matchMedia = createMatchMediaMock(true)
+
+    const fetchMock = vi
+      .fn<() => Promise<Response>>()
+      .mockImplementation(async () => createResponse(createEmptyTxList()))
+
+    Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: matchMedia,
-    });
-    Object.defineProperty(window, "fetch", {
+    })
+    Object.defineProperty(window, 'fetch', {
       writable: true,
       value: fetchMock,
-    });
-    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    })
+    Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
       writable: true,
-      value: vi.fn().mockReturnValue({
-        setTransform: vi.fn(),
-        fillRect: vi.fn(),
-        save: vi.fn(),
-        restore: vi.fn(),
-        beginPath: vi.fn(),
-        moveTo: vi.fn(),
-        lineTo: vi.fn(),
-        stroke: vi.fn(),
-        arc: vi.fn(),
-        fill: vi.fn(),
-      }),
-    });
+      value: vi
+        .fn<() => CanvasRenderingContext2D | null>()
+        .mockReturnValue(createCanvasContextMock()),
+    })
 
-    const wrapper = mount(App);
-    await flushPromises();
-    await wrapper.vm.$nextTick();
+    const wrapper = mount(App)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
 
-    expect(wrapper.text()).toContain("AXONE / SURFACE");
-    expect(wrapper.text()).toContain("GOVERN ACT");
-    expect(wrapper.text()).toContain("Connect identity");
-    expect(wrapper.text()).toContain("axone-testnet");
-    expect(wrapper.text()).toContain("CHAIN REGISTER");
-    expect(wrapper.text()).toContain("Enter the surface");
-    expect(wrapper.text()).toContain("0 RECORDS");
-    expect(wrapper.text()).not.toContain("Awaiting");
+    expect(wrapper.text()).toContain('AXONE / SURFACE')
+    expect(wrapper.text()).toContain('GOVERN ACT')
+    expect(wrapper.text()).toContain('Connect identity')
+    expect(wrapper.text()).toContain('axone-testnet')
+    expect(wrapper.text()).toContain('CHAIN REGISTER')
+    expect(wrapper.text()).toContain('Enter the surface')
+    expect(wrapper.text()).toContain('0 RECORDS')
+    expect(wrapper.text()).not.toContain('Awaiting')
 
-    await wrapper.get(".network-trigger").trigger("click");
-    expect(wrapper.text()).toContain("AXONE-1");
-    expect(wrapper.text()).toContain("soon");
-  });
+    await wrapper.get('.network-trigger').trigger('click')
+    expect(wrapper.text()).toContain('AXONE-1')
+    expect(wrapper.text()).toContain('soon')
+  })
 
-  it("does not show a zero-count heartbeat when the chain request fails", async () => {
-    const matchMedia = vi.fn().mockImplementation(() => ({
-      matches: true,
-      media: "(prefers-reduced-motion: reduce)",
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    }));
+  it('does not show a zero-count heartbeat when the chain request fails', async () => {
+    const matchMedia = createMatchMediaMock(true)
 
-    const fetchMock = vi.fn().mockRejectedValue(new Error("offline"));
+    const fetchMock = vi.fn<() => Promise<Response>>().mockRejectedValue(new Error('offline'))
 
-    Object.defineProperty(window, "matchMedia", {
+    Object.defineProperty(window, 'matchMedia', {
       writable: true,
       value: matchMedia,
-    });
-    Object.defineProperty(window, "fetch", {
+    })
+    Object.defineProperty(window, 'fetch', {
       writable: true,
       value: fetchMock,
-    });
-    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+    })
+    Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
       writable: true,
-      value: vi.fn().mockReturnValue({
-        setTransform: vi.fn(),
-        fillRect: vi.fn(),
-        save: vi.fn(),
-        restore: vi.fn(),
-        beginPath: vi.fn(),
-        moveTo: vi.fn(),
-        lineTo: vi.fn(),
-        stroke: vi.fn(),
-        arc: vi.fn(),
-        fill: vi.fn(),
-      }),
-    });
+      value: vi
+        .fn<() => CanvasRenderingContext2D | null>()
+        .mockReturnValue(createCanvasContextMock()),
+    })
 
-    const wrapper = mount(App);
-    await flushPromises();
-    await wrapper.vm.$nextTick();
+    const wrapper = mount(App)
+    await flushPromises()
+    await wrapper.vm.$nextTick()
 
-    expect(wrapper.text()).toContain("CHAIN UNAVAILABLE");
-    expect(wrapper.text()).not.toContain("0 RECORDS");
-  });
-});
+    expect(wrapper.text()).toContain('CHAIN UNAVAILABLE')
+    expect(wrapper.text()).not.toContain('0 RECORDS')
+  })
+})

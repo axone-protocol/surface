@@ -1,9 +1,9 @@
 <script setup lang="ts">
-const props = defineProps<{
-  polling: boolean;
-  loading: boolean;
-  error?: string;
-}>();
+defineProps<{
+  polling: boolean
+  loading: boolean
+  error?: string
+}>()
 </script>
 
 <template>
