@@ -16,6 +16,7 @@ const props = defineProps<{
   act: SurfaceAct
   reducedMotion: boolean
   typingActive: boolean
+  cursorVisible: boolean
 }>()
 
 const emit = defineEmits<{
@@ -36,6 +37,24 @@ const lines = computed<ActLine[]>(() => [
 ])
 
 const fullText = computed(() => lines.value.map(displayLineText).join('\n'))
+
+const cursorLineKey = computed<ActLineKey | undefined>(() => {
+  if (!props.cursorVisible) {
+    return undefined
+  }
+
+  let lineStart = 0
+  for (const [index, line] of lines.value.entries()) {
+    const lineEnd = lineStart + displayLineText(line).length
+    if (typedLength.value <= lineEnd || index === lines.value.length - 1) {
+      return line.key
+    }
+
+    lineStart = lineEnd + 1
+  }
+
+  return lines.value[lines.value.length - 1]?.key
+})
 
 function shortValue(value: string) {
   if (value.length <= 24) {
@@ -111,6 +130,10 @@ function hasTypedLine(key: ActLineKey) {
   return typedLine(key).length > 0
 }
 
+function hasCursor(key: ActLineKey) {
+  return cursorLineKey.value === key
+}
+
 function stopTyping() {
   window.clearInterval(typingTimer)
   typingTimer = undefined
@@ -159,26 +182,53 @@ onBeforeUnmount(() => {
     <SurfaceActBadge :kind="act.kind" />
 
     <p class="surface-act-item-meta">
-      <span v-if="hasTypedLine('signer')">
-        <em>SIGNER</em><code :title="act.signer">{{ typedValue('signer') }}</code>
+      <span v-if="hasTypedLine('signer') || hasCursor('signer')">
+        <em>SIGNER</em
+        ><code :title="act.signer"
+          >{{ typedValue('signer')
+          }}<span v-if="hasCursor('signer')" class="surface-act-cursor" aria-hidden="true"
+        /></code>
       </span>
-      <span v-if="hasTypedLine('date')">
-        <em>DATE</em><span>{{ typedValue('date') }}</span>
+      <span v-if="hasTypedLine('date') || hasCursor('date')">
+        <em>DATE</em
+        ><span
+          >{{ typedValue('date')
+          }}<span v-if="hasCursor('date')" class="surface-act-cursor" aria-hidden="true"
+        /></span>
       </span>
-      <span v-if="hasTypedLine('tx')">
-        <em>TX</em><code :title="act.txhash">{{ typedValue('tx') }}</code>
+      <span v-if="hasTypedLine('tx') || hasCursor('tx')">
+        <em>TX</em
+        ><code :title="act.txhash"
+          >{{ typedValue('tx')
+          }}<span v-if="hasCursor('tx')" class="surface-act-cursor" aria-hidden="true"
+        /></code>
       </span>
-      <span v-if="hasTypedLine('height')">
-        <em>HEIGHT</em><span>{{ typedValue('height') }}</span>
+      <span v-if="hasTypedLine('height') || hasCursor('height')">
+        <em>HEIGHT</em
+        ><span
+          >{{ typedValue('height')
+          }}<span v-if="hasCursor('height')" class="surface-act-cursor" aria-hidden="true"
+        /></span>
       </span>
-      <span v-if="hasTypedLine('msg')">
-        <em>MSG</em><span>{{ typedValue('msg') }}</span>
+      <span v-if="hasTypedLine('msg') || hasCursor('msg')">
+        <em>MSG</em
+        ><span
+          >{{ typedValue('msg')
+          }}<span v-if="hasCursor('msg')" class="surface-act-cursor" aria-hidden="true"
+        /></span>
       </span>
     </p>
 
-    <p v-if="hasTypedLine('title')" class="surface-act-item-title">{{ typedLine('title') }}</p>
-    <p v-if="hasTypedLine('description')" class="surface-act-item-description">
-      {{ typedLine('description') }}
+    <p v-if="hasTypedLine('title') || hasCursor('title')" class="surface-act-item-title">
+      {{ typedLine('title')
+      }}<span v-if="hasCursor('title')" class="surface-act-cursor" aria-hidden="true" />
+    </p>
+    <p
+      v-if="hasTypedLine('description') || hasCursor('description')"
+      class="surface-act-item-description"
+    >
+      {{ typedLine('description')
+      }}<span v-if="hasCursor('description')" class="surface-act-cursor" aria-hidden="true" />
     </p>
   </article>
 </template>

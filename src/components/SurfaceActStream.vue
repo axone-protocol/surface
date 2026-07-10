@@ -20,6 +20,7 @@ const visibleActs = ref<SurfaceAct[]>([])
 const pendingActs = ref<SurfaceAct[]>([])
 let drainResolver: (() => void) | undefined
 const typingActId = ref<string | undefined>()
+const cursorActId = ref<string | undefined>()
 let draining = false
 let drainGeneration = 0
 
@@ -63,6 +64,7 @@ async function drainVisibleActs() {
       const next = pendingActs.value[0]!
       pendingActs.value = pendingActs.value.slice(1)
       visibleActs.value = [...visibleActs.value, next].slice(-registerWindowSize)
+      cursorActId.value = next.id
 
       if (props.reducedMotion) {
         continue
@@ -106,6 +108,7 @@ watch(
   () => {
     if (props.reducedMotion) {
       visibleActs.value = props.acts.slice(0, registerWindowSize).reverse()
+      cursorActId.value = visibleActs.value[visibleActs.value.length - 1]?.id
       pendingActs.value = []
       stopDrain()
       draining = false
@@ -150,6 +153,7 @@ onBeforeUnmount(() => {
             :act="act"
             :reducedMotion="reducedMotion"
             :typing-active="typingActId === act.id"
+            :cursor-visible="cursorActId === act.id"
             @typing-complete="completeTyping(act.id)"
           />
         </li>

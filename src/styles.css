@@ -1098,40 +1098,18 @@
     margin: 0;
   }
 
-  .chain-polling-dots {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 10px;
-  }
-
-  .chain-polling-dot {
-    width: 5px;
-    height: 5px;
-    background: var(--color-surface-text-quiet);
-    border-radius: 50%;
-    opacity: 0.45;
-  }
-
-  .chain-polling-status.is-active .chain-polling-dot {
-    animation: polling-pulse 900ms ease-in-out infinite;
-  }
-
-  .chain-polling-status.is-active .chain-polling-dot-a {
-    animation-delay: 0ms;
-  }
-
-  .chain-polling-status.is-active .chain-polling-dot-b {
-    animation-delay: 140ms;
-  }
-
-  .chain-polling-status.is-active .chain-polling-dot-c {
-    animation-delay: 280ms;
-  }
-
-  .chain-polling-status.is-error .chain-polling-dot {
+  .surface-act-cursor {
+    display: inline-block;
+    width: 0.52em;
+    height: 1em;
+    margin-left: 3px;
+    vertical-align: -0.14em;
     background: var(--color-surface-gold);
-    opacity: 0.9;
+    animation: surface-act-cursor-blink 900ms steps(1, end) infinite;
+  }
+
+  .is-reduced-motion .surface-act-cursor {
+    animation: none;
   }
 
   @media (max-width: 760px) {
@@ -1263,16 +1241,15 @@
   }
 }
 
-@keyframes polling-pulse {
+@keyframes surface-act-cursor-blink {
   0%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.35;
+  49% {
+    opacity: 1;
   }
 
-  50% {
-    transform: translateY(-1px);
-    opacity: 1;
+  50%,
+  100% {
+    opacity: 0;
   }
 }
 

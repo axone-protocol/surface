@@ -19,7 +19,7 @@ describe('SurfaceActStream', () => {
       },
     })
 
-    expect(wrapper.find('.chain-polling-dots').exists()).toBe(true)
+    expect(wrapper.find('.chain-polling-dots').exists()).toBe(false)
 
     await wrapper.setProps({
       loading: false,
@@ -100,6 +100,7 @@ describe('SurfaceActStream', () => {
     expect(wrapper.text()).toContain('0xghi')
     expect(wrapper.text()).toContain('LAST SYNC 17:11:19')
     expect(wrapper.findAll('.surface-act-item')).toHaveLength(3)
+    expect(wrapper.findAll('.surface-act-cursor')).toHaveLength(1)
     expect(wrapper.text()).not.toContain('QUALIFIED EVENTS')
     expect(wrapper.text()).not.toMatch(/\d+ ACTS/)
     expect(wrapper.text()).not.toContain('next act')
@@ -239,6 +240,7 @@ describe('SurfaceActStream', () => {
 
     expect(wrapper.findAllComponents(SurfaceActItem)).toHaveLength(1)
     expect(wrapper.findComponent(SurfaceActItem).props('typingActive')).toBe(true)
+    expect(wrapper.find('.surface-act-cursor').element.parentElement?.tagName).toBe('CODE')
 
     wrapper.findComponent(SurfaceActItem).vm.$emit('typing-complete')
     await nextTick()
