@@ -15,6 +15,11 @@ type ActLine = {
 const props = defineProps<{
   act: SurfaceAct
   reducedMotion: boolean
+  typingActive: boolean
+}>()
+
+const emit = defineEmits<{
+  'typing-complete': []
 }>()
 
 const typedLength = ref(0)
@@ -114,7 +119,7 @@ function stopTyping() {
 function startTyping() {
   stopTyping()
 
-  if (props.reducedMotion) {
+  if (props.reducedMotion || !props.typingActive) {
     typedLength.value = fullText.value.length
     return
   }
@@ -124,6 +129,7 @@ function startTyping() {
     if (typedLength.value >= fullText.value.length) {
       typedLength.value = fullText.value.length
       stopTyping()
+      emit('typing-complete')
       return
     }
 
@@ -136,7 +142,7 @@ function startTyping() {
 }
 
 watch(
-  () => [props.act.id, props.reducedMotion] as const,
+  () => [props.act.id, props.reducedMotion, props.typingActive] as const,
   () => {
     startTyping()
   },

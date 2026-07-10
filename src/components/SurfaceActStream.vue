@@ -15,24 +15,28 @@ const props = defineProps<{
   registerSummary?: string
 }>()
 
-const maxVisibleActs = 3
+const registerWindowSize = 3
 const visibleActs = ref<SurfaceAct[]>([])
 const pendingActs = ref<SurfaceAct[]>([])
-let drainTimer: number | undefined
 let drainResolver: (() => void) | undefined
+const typingActId = ref<string | undefined>()
 let draining = false
+let drainGeneration = 0
 
 function stopDrain() {
-  window.clearTimeout(drainTimer)
-  drainTimer = undefined
+  drainGeneration += 1
+  typingActId.value = undefined
   if (drainResolver) {
     drainResolver()
     drainResolver = undefined
   }
+  draining = false
 }
 
 function enqueueMissingActs() {
-  const targetWindow = props.acts.slice(0, maxVisibleActs).reverse()
+  // The API is newest-first, while the fixed register is rendered like paper:
+  // oldest visible line at the top and the newest line at the bottom.
+  const targetWindow = props.acts.slice(0, registerWindowSize).reverse()
   const currentIds = new Set([...visibleActs.value, ...pendingActs.value].map((act) => act.id))
   const missingActs = targetWindow.filter((act) => !currentIds.has(act.id))
 
@@ -52,24 +56,41 @@ async function drainVisibleActs() {
   }
 
   draining = true
+  const generation = drainGeneration
 
-  while (pendingActs.value.length > 0) {
-    const next = pendingActs.value[0]!
-    pendingActs.value = pendingActs.value.slice(1)
-    visibleActs.value = [...visibleActs.value, next].slice(-maxVisibleActs)
+  try {
+    while (generation === drainGeneration && pendingActs.value.length > 0) {
+      const next = pendingActs.value[0]!
+      pendingActs.value = pendingActs.value.slice(1)
+      visibleActs.value = [...visibleActs.value, next].slice(-registerWindowSize)
 
-    if (!props.reducedMotion) {
+      if (props.reducedMotion) {
+        continue
+      }
+
+      typingActId.value = next.id
       await new Promise<void>((resolve) => {
         drainResolver = resolve
-        drainTimer = window.setTimeout(() => {
-          drainResolver = undefined
-          resolve()
-        }, 1900)
       })
     }
+  } finally {
+    if (generation === drainGeneration) {
+      typingActId.value = undefined
+      draining = false
+    }
+  }
+}
+
+function completeTyping(actId: string) {
+  if (typingActId.value !== actId) {
+    return
   }
 
-  draining = false
+  typingActId.value = undefined
+  if (drainResolver) {
+    drainResolver()
+    drainResolver = undefined
+  }
 }
 
 watch(
@@ -84,7 +105,7 @@ watch(
   () => props.reducedMotion,
   () => {
     if (props.reducedMotion) {
-      visibleActs.value = props.acts.slice(0, maxVisibleActs).reverse()
+      visibleActs.value = props.acts.slice(0, registerWindowSize).reverse()
       pendingActs.value = []
       stopDrain()
       draining = false
@@ -125,7 +146,12 @@ onBeforeUnmount(() => {
     <div v-else-if="visibleActs.length > 0" class="surface-act-window">
       <TransitionGroup tag="ol" name="surface-act-row" class="surface-act-list">
         <li v-for="act in visibleActs" :key="act.id" class="surface-act-list-item">
-          <SurfaceActItem :act="act" :reducedMotion="reducedMotion" />
+          <SurfaceActItem
+            :act="act"
+            :reducedMotion="reducedMotion"
+            :typing-active="typingActId === act.id"
+            @typing-complete="completeTyping(act.id)"
+          />
         </li>
       </TransitionGroup>
     </div>
