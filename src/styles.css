@@ -8,6 +8,7 @@
     sans-serif;
   --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
   --color-surface-bg: #080605;
+  --color-surface-register-bg: #0d0f0e;
   --color-surface-text: #f0eadc;
   --color-surface-muted: rgba(240, 234, 220, 0.64);
   --color-surface-dim: rgba(240, 234, 220, 0.58);
@@ -818,11 +819,27 @@
   }
 
   .surface-act-stream {
+    position: relative;
+    isolation: isolate;
     display: grid;
-    gap: 8px;
+    gap: 10px;
     max-width: 1080px;
-    padding-top: 4px;
+    padding-top: 16px;
+    padding-bottom: 14px;
+  }
+
+  .surface-act-stream::before {
+    position: absolute;
+    z-index: -1;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 100vw;
+    background: var(--color-surface-register-bg);
     border-top: 1px solid var(--color-surface-line-strong);
+    border-bottom: 1px solid var(--color-surface-line);
+    content: '';
+    transform: translateX(-50%);
   }
 
   .surface-act-stream-head {
@@ -846,9 +863,11 @@
 
   .surface-act-stream-head p {
     margin: 0;
-    font-size: 0.72rem;
-    font-weight: 650;
-    letter-spacing: 0;
+    color: var(--color-surface-code);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
     line-height: 1;
     text-transform: uppercase;
   }
@@ -1136,7 +1155,9 @@
     }
 
     .surface-act-stream {
-      gap: 6px;
+      gap: 8px;
+      padding-top: 14px;
+      padding-bottom: 12px;
     }
 
     .surface-act-stream-head {
