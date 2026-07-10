@@ -2,7 +2,7 @@
 
 > ◌ governed situations - made readable
 
-[![lint](https://img.shields.io/github/actions/workflow/status/axone-protocol/axone-surface/lint-commits.yml?branch=main&label=lint&style=for-the-badge&logo=github)](https://github.com/axone-protocol/axone-surface/actions/workflows/lint-commits.yml)
+[![lint](https://img.shields.io/github/actions/workflow/status/axone-protocol/surface/lint-commits.yml?branch=main&label=lint&style=for-the-badge&logo=github)](https://github.com/axone-protocol/surface/actions/workflows/lint-commits.yml)
 
 [![Built with Nix](https://img.shields.io/badge/Built_With-Nix-5277C3.svg?style=for-the-badge&logo=nixos&logoColor=white)](https://nixos.org/)
 [![conventional commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg?style=for-the-badge&logo=conventionalcommits)](https://conventionalcommits.org)
