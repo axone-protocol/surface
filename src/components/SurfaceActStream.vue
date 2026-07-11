@@ -2,8 +2,16 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 
 import ChainPollingStatus from './ChainPollingStatus.vue'
-import SurfaceActItem from './SurfaceActItem.vue'
-import type { SurfaceAct } from '../domain/surface-act'
+import SurfaceActLine from './SurfaceActLine.vue'
+import { surfaceActKindCategories, type SurfaceAct } from '../domain/surface-act'
+
+type SurfaceActLineRole = 'category' | 'meta' | 'title' | 'description'
+
+type RegisterLine = {
+  id: string
+  role: SurfaceActLineRole
+  text: string
+}
 
 const props = defineProps<{
   acts: SurfaceAct[]
@@ -15,18 +23,20 @@ const props = defineProps<{
   registerSummary?: string
 }>()
 
-const registerWindowSize = 3
-const visibleActs = ref<SurfaceAct[]>([])
-const pendingActs = ref<SurfaceAct[]>([])
+const registerActWindowSize = 3
+const registerLineWindowSize = 12
+const visibleLines = ref<RegisterLine[]>([])
+const pendingLines = ref<RegisterLine[]>([])
+const typingLineId = ref<string | undefined>()
+const cursorLineId = ref<string | undefined>()
+const knownActIds = new Set<string>()
 let drainResolver: (() => void) | undefined
-const typingActId = ref<string | undefined>()
-const cursorActId = ref<string | undefined>()
 let draining = false
 let drainGeneration = 0
 
 function stopDrain() {
   drainGeneration += 1
-  typingActId.value = undefined
+  typingLineId.value = undefined
   if (drainResolver) {
     drainResolver()
     drainResolver = undefined
@@ -34,24 +44,74 @@ function stopDrain() {
   draining = false
 }
 
+function shortValue(value: string) {
+  if (value.length <= 24) {
+    return value
+  }
+
+  return `${value.slice(0, 12)}...${value.slice(-6)}`
+}
+
+function compactValue(value: string) {
+  if (value.startsWith('did:pkh:')) {
+    const didParts = value.split(':')
+    return shortValue(didParts[didParts.length - 1] ?? value)
+  }
+
+  return shortValue(value)
+}
+
+function compactDate(value: string) {
+  const normalized = value.match(
+    /^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::\d{2}(?:\.\d{3})?)?(?:Z| UTC)?$/,
+  )
+
+  if (normalized) {
+    const [, date, hour, minute] = normalized
+    return `${date} ${hour}:${minute} UTC`
+  }
+
+  return value.replace('.000Z', ' UTC').replace('T', ' ').replace(/Z$/, ' UTC')
+}
+
+function registerLines(act: SurfaceAct): RegisterLine[] {
+  const lines: Array<{ role: SurfaceActLineRole; text: string }> = [
+    { role: 'category', text: surfaceActKindCategories[act.kind] },
+    {
+      role: 'meta',
+      text: `SIGNER ${compactValue(act.signer ?? '-')}  DATE ${compactDate(act.timestamp)}  TX ${shortValue(act.txhash)}  HEIGHT ${act.height}  MSG ${act.msgIndex}`,
+    },
+    { role: 'title', text: act.title },
+    { role: 'description', text: act.description },
+  ]
+
+  return lines.map((line) => ({
+    ...line,
+    id: `${act.id}:${line.role}`,
+  }))
+}
+
+function currentActs() {
+  return props.acts.slice(0, registerActWindowSize).reverse()
+}
+
 function enqueueMissingActs() {
-  // The API is newest-first, while the fixed register is rendered like paper:
-  // oldest visible line at the top and the newest line at the bottom.
-  const targetWindow = props.acts.slice(0, registerWindowSize).reverse()
-  const currentIds = new Set([...visibleActs.value, ...pendingActs.value].map((act) => act.id))
-  const missingActs = targetWindow.filter((act) => !currentIds.has(act.id))
+  // The API is newest-first, while the register is written like paper:
+  // the oldest retained act is printed before the newest one.
+  const missingActs = currentActs().filter((act) => !knownActIds.has(act.id))
 
   if (missingActs.length === 0) {
     return
   }
 
-  pendingActs.value = [...pendingActs.value, ...missingActs]
+  missingActs.forEach((act) => knownActIds.add(act.id))
+  pendingLines.value = [...pendingLines.value, ...missingActs.flatMap(registerLines)]
   if (!draining) {
-    void drainVisibleActs()
+    void drainVisibleLines()
   }
 }
 
-async function drainVisibleActs() {
+async function drainVisibleLines() {
   if (draining) {
     return
   }
@@ -60,35 +120,36 @@ async function drainVisibleActs() {
   const generation = drainGeneration
 
   try {
-    while (generation === drainGeneration && pendingActs.value.length > 0) {
-      const next = pendingActs.value[0]!
-      pendingActs.value = pendingActs.value.slice(1)
-      visibleActs.value = [...visibleActs.value, next].slice(-registerWindowSize)
-      cursorActId.value = next.id
+    while (generation === drainGeneration && pendingLines.value.length > 0) {
+      const next = pendingLines.value[0]!
+      pendingLines.value = pendingLines.value.slice(1)
+      visibleLines.value = [...visibleLines.value, next].slice(-registerLineWindowSize)
 
       if (props.reducedMotion) {
+        cursorLineId.value = undefined
         continue
       }
 
-      typingActId.value = next.id
+      cursorLineId.value = next.id
+      typingLineId.value = next.id
       await new Promise<void>((resolve) => {
         drainResolver = resolve
       })
     }
   } finally {
     if (generation === drainGeneration) {
-      typingActId.value = undefined
+      typingLineId.value = undefined
       draining = false
     }
   }
 }
 
-function completeTyping(actId: string) {
-  if (typingActId.value !== actId) {
+function completeTyping(lineId: string) {
+  if (typingLineId.value !== lineId) {
     return
   }
 
-  typingActId.value = undefined
+  typingLineId.value = undefined
   if (drainResolver) {
     drainResolver()
     drainResolver = undefined
@@ -107,11 +168,13 @@ watch(
   () => props.reducedMotion,
   () => {
     if (props.reducedMotion) {
-      visibleActs.value = props.acts.slice(0, registerWindowSize).reverse()
-      cursorActId.value = visibleActs.value[visibleActs.value.length - 1]?.id
-      pendingActs.value = []
+      const acts = currentActs()
+      visibleLines.value = acts.flatMap(registerLines)
+      cursorLineId.value = undefined
+      pendingLines.value = []
+      knownActIds.clear()
+      acts.forEach((act) => knownActIds.add(act.id))
       stopDrain()
-      draining = false
       return
     }
 
@@ -146,15 +209,16 @@ onBeforeUnmount(() => {
 
     <p v-if="error" class="surface-act-stream-error">{{ error }}</p>
 
-    <div v-else-if="visibleActs.length > 0" class="surface-act-window">
+    <div v-else-if="visibleLines.length > 0" class="surface-act-window">
       <TransitionGroup tag="ol" name="surface-act-row" class="surface-act-list">
-        <li v-for="act in visibleActs" :key="act.id" class="surface-act-list-item">
-          <SurfaceActItem
-            :act="act"
+        <li v-for="line in visibleLines" :key="line.id" class="surface-act-list-item">
+          <SurfaceActLine
+            :role="line.role"
+            :text="line.text"
             :reducedMotion="reducedMotion"
-            :typing-active="typingActId === act.id"
-            :cursor-visible="cursorActId === act.id"
-            @typing-complete="completeTyping(act.id)"
+            :typing-active="typingLineId === line.id"
+            :cursor-visible="cursorLineId === line.id"
+            @typing-complete="completeTyping(line.id)"
           />
         </li>
       </TransitionGroup>
