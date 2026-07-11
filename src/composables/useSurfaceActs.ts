@@ -5,7 +5,11 @@ import {
   mapTxToSurfaceActs,
   sortSurfaceActs,
 } from '../domain/surface-act-mapper'
-import { fetchExecuteContractTxs, fetchInstantiateContract2Txs } from '../infra/axone-tx-api'
+import {
+  fetchExecuteContractTxs,
+  fetchInstantiateContract2Txs,
+  resolveTransactionEntries,
+} from '../infra/axone-tx-api'
 import type { SurfaceAct } from '../domain/surface-act'
 import type { CosmosTxResponse } from '../infra/axone-event-extractor'
 
@@ -20,8 +24,22 @@ type UseSurfaceActsState = {
 
 const pollIntervalMs = 15000
 
-function mergeAndNormalizeActs(current: SurfaceAct[], txs: CosmosTxResponse[]) {
-  const incomingActs = txs.flatMap((tx) => mapTxToSurfaceActs(tx))
+function mergeAndNormalizeActs(
+  current: SurfaceAct[],
+  txs: CosmosTxResponse[],
+  entriesByTxHash: Map<string, string>,
+) {
+  const incomingActs = txs.flatMap((tx) => {
+    const entryPrefix = entriesByTxHash.get(tx.txhash ?? '')
+    if (!entryPrefix) {
+      return []
+    }
+
+    return mapTxToSurfaceActs(tx).map((act) => ({
+      ...act,
+      entry: `${entryPrefix}.${act.msgIndex}`,
+    }))
+  })
   return sortSurfaceActs(dedupeSurfaceActs([...incomingActs, ...current])).slice(0, 3)
 }
 
@@ -60,10 +78,12 @@ export function useSurfaceActs(): UseSurfaceActsState {
         fetchExecuteContractTxs(),
       ])
 
-      const currentActs = mergeAndNormalizeActs(acts.value, [
-        ...instantiateTxs.txResponses,
-        ...executeTxs.txResponses,
-      ])
+      const txResponses = [...instantiateTxs.txResponses, ...executeTxs.txResponses]
+      const entriesByTxHash = await resolveTransactionEntries(txResponses)
+      if (txResponses.length > 0 && entriesByTxHash.size === 0) {
+        throw new Error('Chain register temporarily unavailable.')
+      }
+      const currentActs = mergeAndNormalizeActs(acts.value, txResponses, entriesByTxHash)
       acts.value = currentActs
       total.value = (instantiateTxs.total || 0) + (executeTxs.total || 0)
       lastSync.value = new Date()

@@ -15,6 +15,7 @@ export type SurfaceAct = {
   msgIndex: number
   actIndex: number
   height: number
+  entry?: string
   timestamp: string
   signer?: string
   contract?: string
@@ -22,6 +23,7 @@ export type SurfaceAct = {
   action?: string
   title: string
   description: string
+  assertion: string
   payload: Record<string, string>
 }
 
@@ -29,7 +31,7 @@ export const surfaceActKindLabels: Record<SurfaceActKind, string> = {
   'identity.created': 'IDENTITY REGISTERED',
   'capability.installed': 'CAPABILITY INSTALLED',
   'governance.instantiated': 'GOVERNANCE INSTANTIATED',
-  'governance.decision.recorded': 'ACT RECORDED',
+  'governance.decision.recorded': 'DECISION RECORDED',
   'governance.constitution.revised': 'GOVERNANCE REVISED',
   'credential.authority.instantiated': 'CREDENTIAL AUTHORITY INSTANTIATED',
   'credential.issued': 'CREDENTIAL ISSUED',
@@ -40,7 +42,7 @@ export const surfaceActKindCategories: Record<SurfaceActKind, string> = {
   'identity.created': 'IDENTITY',
   'capability.installed': 'CAPABILITY',
   'governance.instantiated': 'GOVERNANCE',
-  'governance.decision.recorded': 'ACT',
+  'governance.decision.recorded': 'VERDICT',
   'governance.constitution.revised': 'GOVERNANCE',
   'credential.authority.instantiated': 'CREDENTIAL',
   'credential.issued': 'CREDENTIAL',
@@ -48,13 +50,12 @@ export const surfaceActKindCategories: Record<SurfaceActKind, string> = {
 }
 
 export const surfaceActKindDescriptions: Record<SurfaceActKind, string> = {
-  'identity.created': 'Abstract account was registered as an Axone identity.',
-  'capability.installed': 'An Abstract account installed the requested modules.',
-  'governance.instantiated': 'A governance capability was instantiated for the identity.',
-  'governance.decision.recorded': 'A governance act was recorded for the case.',
-  'governance.constitution.revised': 'The governance constitution was revised.',
-  'credential.authority.instantiated':
-    'A credential authority was instantiated and can issue or revoke credentials.',
-  'credential.issued': 'A credential was issued by the authority.',
-  'credential.revoked': 'A credential was revoked by the authority.',
+  'identity.created': 'Identity recorded.',
+  'capability.installed': 'Capabilities recorded.',
+  'governance.instantiated': 'Governance recorded.',
+  'governance.decision.recorded': 'Decision recorded.',
+  'governance.constitution.revised': 'Constitution revised.',
+  'credential.authority.instantiated': 'Credential authority recorded.',
+  'credential.issued': 'Credential issued.',
+  'credential.revoked': 'Credential revoked.',
 }

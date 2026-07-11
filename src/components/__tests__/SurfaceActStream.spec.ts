@@ -13,72 +13,63 @@ function makeAct(id: string, height: number, signer: string) {
     msgIndex: 0,
     actIndex: 0,
     height,
+    entry: `${height}.0.0`,
     timestamp: `2026-07-09T12:0${height}:00Z`,
     signer,
     contractAddress: 'axone1contract',
     action: 'instantiate',
     title: 'IDENTITY REGISTERED',
-    description: `${signer} was registered as an Axone identity.`,
+    description: 'Identity recorded.',
+    assertion: `Identity recorded for ${signer}.`,
     payload: {},
   }
 }
 
 describe('SurfaceActStream', () => {
-  it('renders each record as four ordered lines in reduced-motion mode', async () => {
+  it('renders the oldest-to-newest three-record window with assertions and limited proof', async () => {
     const oldest = makeAct('TX-1', 1, 'axone1oldest')
     const newest = makeAct('TX-2', 2, 'axone1newest')
     const wrapper = mount(SurfaceActStream, {
-      props: {
-        acts: [newest, oldest],
-        loading: false,
-        reducedMotion: true,
-        polling: false,
-      },
+      props: { acts: [newest, oldest], loading: false, reducedMotion: true, polling: false },
     })
 
     await nextTick()
 
-    const lines = wrapper.findAll('.surface-act-line')
-    expect(lines).toHaveLength(8)
-    expect(lines[0]!.text()).toBe('IDENTITY')
-    expect(lines[1]!.text()).toContain('SIGNER axone1oldest')
-    expect(lines[2]!.text()).toBe('IDENTITY REGISTERED')
-    expect(lines[3]!.text()).toContain('axone1oldest was registered')
-    expect(lines[4]!.text()).toBe('IDENTITY')
-    expect(lines[5]!.text()).toContain('SIGNER axone1newest')
+    const records = wrapper.findAll('.surface-act-record')
+    expect(records).toHaveLength(2)
+    expect(records[0]!.text()).toContain('Identity recorded for axone1oldest.')
+    expect(records[1]!.text()).toContain('Identity recorded for axone1newest.')
+    expect(records[0]!.find('.surface-act-category').text()).toBe('IDENTITY')
+    expect(records[0]!.find('.surface-act-proof').text()).toContain('entry1.0.0')
+    expect(records[0]!.find('.surface-act-proof').text()).toContain('txTX-1')
+    expect(records[0]!.find('.surface-act-proof').text()).toContain('time2026-07-09 12:01 UTC')
+    expect(wrapper.text()).not.toContain('HEIGHT')
+    expect(wrapper.text()).not.toContain('MSG')
     expect(wrapper.find('.surface-act-cursor').exists()).toBe(false)
   })
 
-  it('moves the register forward one typed line at a time', async () => {
+  it('reveals exactly one record assertion at a time', async () => {
     const oldest = makeAct('TX-1', 1, 'axone1oldest')
     const newest = makeAct('TX-2', 2, 'axone1newest')
     const wrapper = mount(SurfaceActStream, {
-      props: {
-        acts: [newest, oldest],
-        loading: false,
-        reducedMotion: false,
-        polling: false,
-      },
+      props: { acts: [newest, oldest], loading: false, reducedMotion: false, polling: false },
     })
 
     expect(wrapper.findAllComponents(SurfaceActLine)).toHaveLength(1)
     expect(wrapper.findComponent(SurfaceActLine).props('typingActive')).toBe(true)
 
-    for (let count = 2; count <= 5; count += 1) {
-      const beforeAdvance = wrapper.findAllComponents(SurfaceActLine)
-      beforeAdvance[beforeAdvance.length - 1]!.vm.$emit('typing-complete')
-      await nextTick()
-      await nextTick()
+    wrapper.findComponent(SurfaceActLine).vm.$emit('typing-complete')
+    await nextTick()
+    await nextTick()
 
-      const lines = wrapper.findAllComponents(SurfaceActLine)
-      expect(lines).toHaveLength(count)
-      expect(lines[lines.length - 1]!.props('typingActive')).toBe(true)
-    }
-
-    expect(wrapper.findAll('.surface-act-line')[4]!.classes()).toContain('surface-act-line-category')
+    const records = wrapper.findAllComponents(SurfaceActLine)
+    expect(records).toHaveLength(2)
+    expect(records[0]!.props('typingActive')).toBe(false)
+    expect(records[1]!.props('typingActive')).toBe(true)
+    expect(wrapper.findAll('.surface-act-cursor')).toHaveLength(1)
   })
 
-  it('retains only the twelve latest logical lines', async () => {
+  it('retains only the three latest records', async () => {
     const acts = [
       makeAct('TX-4', 4, 'axone1newest'),
       makeAct('TX-3', 3, 'axone1middle'),
@@ -86,21 +77,14 @@ describe('SurfaceActStream', () => {
       makeAct('TX-1', 1, 'axone1oldest'),
     ]
     const wrapper = mount(SurfaceActStream, {
-      props: {
-        acts: acts.slice(1),
-        loading: false,
-        reducedMotion: true,
-        polling: false,
-      },
+      props: { acts, loading: false, reducedMotion: true, polling: false },
     })
 
-    await wrapper.setProps({ acts })
+    await nextTick()
 
-    const lines = wrapper.findAll('.surface-act-line')
-    expect(lines).toHaveLength(12)
+    expect(wrapper.findAll('.surface-act-record')).toHaveLength(3)
     expect(wrapper.text()).not.toContain('axone1oldest')
     expect(wrapper.text()).toContain('axone1older')
     expect(wrapper.text()).toContain('axone1newest')
-    expect(wrapper.find('.surface-act-item').exists()).toBe(false)
   })
 })

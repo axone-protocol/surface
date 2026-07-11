@@ -68,6 +68,10 @@ function truncateIdentityAddress(address: string) {
   return `${address.slice(0, 12)}...${address.slice(-6)}`
 }
 
+function assertionSubject(...values: Array<string | undefined>) {
+  return truncateIdentityAddress(values.find((value) => value && value.length > 0) ?? 'identity')
+}
+
 function makeActBase(
   tx: CosmosTxResponse,
   messageIndex: number,
@@ -85,6 +89,7 @@ function makeActBase(
     timestamp: txTimestamp(tx),
     title: surfaceActKindLabels[kind],
     description: surfaceActKindDescriptions[kind],
+    assertion: surfaceActKindDescriptions[kind],
     payload: {},
   } satisfies SurfaceAct
 }
@@ -110,7 +115,8 @@ function fromInstantiate(
       signer: String(message.sender ?? ''),
       contractAddress,
       action: 'instantiate',
-      description: `Abstract account ${truncateIdentityAddress(contractAddress)} was registered as an Axone identity.`,
+      description: surfaceActKindDescriptions['identity.created'],
+      assertion: `Identity recorded for ${truncateIdentityAddress(contractAddress)}.`,
       payload: stringPayload({
         _contract_address: contractAddress,
         code_id: String(message.code_id ?? message['codeId'] ?? ''),
@@ -147,9 +153,8 @@ function mapWasmAbstractEvent(
       contractAddress,
       action,
       title: surfaceActKindLabels['capability.installed'],
-      description: attributes.installed_modules
-        ? `${surfaceActKindDescriptions['capability.installed']} ${attributes.installed_modules}.`
-        : surfaceActKindDescriptions['capability.installed'],
+      description: surfaceActKindDescriptions['capability.installed'],
+      assertion: `Capabilities installed for ${assertionSubject(contractAddress, signer)}.`,
       payload: stringPayload({
         installed_modules: attributes.installed_modules ?? '',
         _contract_address: contractAddress,
@@ -168,6 +173,7 @@ function mapWasmAbstractEvent(
       action,
       title: surfaceActKindLabels['governance.instantiated'],
       description: surfaceActKindDescriptions['governance.instantiated'],
+      assertion: `Governance established for ${assertionSubject(contractAddress, signer)}.`,
       payload: stringPayload({
         constitution_hash: attributes.constitution_hash ?? '',
         constitution_revision: attributes.constitution_revision ?? '',
@@ -187,9 +193,8 @@ function mapWasmAbstractEvent(
       contractAddress,
       action,
       title: surfaceActKindLabels['governance.decision.recorded'],
-      description: verdict
-        ? `${surfaceActKindDescriptions['governance.decision.recorded']} Verdict: ${verdict}.`
-        : surfaceActKindDescriptions['governance.decision.recorded'],
+      description: surfaceActKindDescriptions['governance.decision.recorded'],
+      assertion: `Decision recorded by ${assertionSubject(signer, contractAddress)}.`,
       payload: stringPayload({
         decision_id: attributes.decision_id ?? '',
         constitution_revision: attributes.constitution_revision ?? '',
@@ -214,6 +219,7 @@ function mapWasmAbstractEvent(
       action,
       title: surfaceActKindLabels['governance.constitution.revised'],
       description: surfaceActKindDescriptions['governance.constitution.revised'],
+      assertion: `Constitution revised by ${assertionSubject(signer, contractAddress)}.`,
       payload: stringPayload({
         constitution_revision: attributes.constitution_revision ?? '',
         constitution_hash: attributes.constitution_hash ?? '',
@@ -233,6 +239,7 @@ function mapWasmAbstractEvent(
       action,
       title: surfaceActKindLabels['credential.authority.instantiated'],
       description: surfaceActKindDescriptions['credential.authority.instantiated'],
+      assertion: `Credential authority established for ${assertionSubject(contractAddress, signer)}.`,
       payload: stringPayload({
         _contract_address: contractAddress,
         msg_index: String(messageIndex),
@@ -250,6 +257,7 @@ function mapWasmAbstractEvent(
       action,
       title: surfaceActKindLabels['credential.issued'],
       description: surfaceActKindDescriptions['credential.issued'],
+      assertion: `Credential issued to ${assertionSubject(attributes.subject, signer, contractAddress)}.`,
       payload: stringPayload({
         identifier: attributes.identifier ?? '',
         issuer: attributes.issuer ?? '',
@@ -273,6 +281,7 @@ function mapWasmAbstractEvent(
       action,
       title: surfaceActKindLabels['credential.revoked'],
       description: surfaceActKindDescriptions['credential.revoked'],
+      assertion: `Credential revoked by ${assertionSubject(attributes.issuer, signer, contractAddress)}.`,
       payload: stringPayload({
         identifier: attributes.identifier ?? '',
         issuer: attributes.issuer ?? '',

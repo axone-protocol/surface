@@ -3,15 +3,7 @@ import { onBeforeUnmount, ref, watch } from 'vue'
 
 import ChainPollingStatus from './ChainPollingStatus.vue'
 import SurfaceActLine from './SurfaceActLine.vue'
-import { surfaceActKindCategories, type SurfaceAct } from '../domain/surface-act'
-
-type SurfaceActLineRole = 'category' | 'meta' | 'title' | 'description'
-
-type RegisterLine = {
-  id: string
-  role: SurfaceActLineRole
-  text: string
-}
+import type { SurfaceAct } from '../domain/surface-act'
 
 const props = defineProps<{
   acts: SurfaceAct[]
@@ -24,11 +16,10 @@ const props = defineProps<{
 }>()
 
 const registerActWindowSize = 3
-const registerLineWindowSize = 12
-const visibleLines = ref<RegisterLine[]>([])
-const pendingLines = ref<RegisterLine[]>([])
-const typingLineId = ref<string | undefined>()
-const cursorLineId = ref<string | undefined>()
+const visibleActs = ref<SurfaceAct[]>([])
+const pendingActs = ref<SurfaceAct[]>([])
+const typingActId = ref<string | undefined>()
+const cursorActId = ref<string | undefined>()
 const knownActIds = new Set<string>()
 let drainResolver: (() => void) | undefined
 let draining = false
@@ -36,59 +27,12 @@ let drainGeneration = 0
 
 function stopDrain() {
   drainGeneration += 1
-  typingLineId.value = undefined
+  typingActId.value = undefined
   if (drainResolver) {
     drainResolver()
     drainResolver = undefined
   }
   draining = false
-}
-
-function shortValue(value: string) {
-  if (value.length <= 24) {
-    return value
-  }
-
-  return `${value.slice(0, 12)}...${value.slice(-6)}`
-}
-
-function compactValue(value: string) {
-  if (value.startsWith('did:pkh:')) {
-    const didParts = value.split(':')
-    return shortValue(didParts[didParts.length - 1] ?? value)
-  }
-
-  return shortValue(value)
-}
-
-function compactDate(value: string) {
-  const normalized = value.match(
-    /^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::\d{2}(?:\.\d{3})?)?(?:Z| UTC)?$/,
-  )
-
-  if (normalized) {
-    const [, date, hour, minute] = normalized
-    return `${date} ${hour}:${minute} UTC`
-  }
-
-  return value.replace('.000Z', ' UTC').replace('T', ' ').replace(/Z$/, ' UTC')
-}
-
-function registerLines(act: SurfaceAct): RegisterLine[] {
-  const lines: Array<{ role: SurfaceActLineRole; text: string }> = [
-    { role: 'category', text: surfaceActKindCategories[act.kind] },
-    {
-      role: 'meta',
-      text: `SIGNER ${compactValue(act.signer ?? '-')}  DATE ${compactDate(act.timestamp)}  TX ${shortValue(act.txhash)}  HEIGHT ${act.height}  MSG ${act.msgIndex}`,
-    },
-    { role: 'title', text: act.title },
-    { role: 'description', text: act.description },
-  ]
-
-  return lines.map((line) => ({
-    ...line,
-    id: `${act.id}:${line.role}`,
-  }))
 }
 
 function currentActs() {
@@ -105,13 +49,13 @@ function enqueueMissingActs() {
   }
 
   missingActs.forEach((act) => knownActIds.add(act.id))
-  pendingLines.value = [...pendingLines.value, ...missingActs.flatMap(registerLines)]
+  pendingActs.value = [...pendingActs.value, ...missingActs]
   if (!draining) {
-    void drainVisibleLines()
+    void drainVisibleActs()
   }
 }
 
-async function drainVisibleLines() {
+async function drainVisibleActs() {
   if (draining) {
     return
   }
@@ -120,36 +64,36 @@ async function drainVisibleLines() {
   const generation = drainGeneration
 
   try {
-    while (generation === drainGeneration && pendingLines.value.length > 0) {
-      const next = pendingLines.value[0]!
-      pendingLines.value = pendingLines.value.slice(1)
-      visibleLines.value = [...visibleLines.value, next].slice(-registerLineWindowSize)
+    while (generation === drainGeneration && pendingActs.value.length > 0) {
+      const next = pendingActs.value[0]!
+      pendingActs.value = pendingActs.value.slice(1)
+      visibleActs.value = [...visibleActs.value, next].slice(-registerActWindowSize)
 
       if (props.reducedMotion) {
-        cursorLineId.value = undefined
+        cursorActId.value = undefined
         continue
       }
 
-      cursorLineId.value = next.id
-      typingLineId.value = next.id
+      cursorActId.value = next.id
+      typingActId.value = next.id
       await new Promise<void>((resolve) => {
         drainResolver = resolve
       })
     }
   } finally {
     if (generation === drainGeneration) {
-      typingLineId.value = undefined
+      typingActId.value = undefined
       draining = false
     }
   }
 }
 
-function completeTyping(lineId: string) {
-  if (typingLineId.value !== lineId) {
+function completeTyping(actId: string) {
+  if (typingActId.value !== actId) {
     return
   }
 
-  typingLineId.value = undefined
+  typingActId.value = undefined
   if (drainResolver) {
     drainResolver()
     drainResolver = undefined
@@ -169,9 +113,9 @@ watch(
   () => {
     if (props.reducedMotion) {
       const acts = currentActs()
-      visibleLines.value = acts.flatMap(registerLines)
-      cursorLineId.value = undefined
-      pendingLines.value = []
+      visibleActs.value = acts
+      cursorActId.value = undefined
+      pendingActs.value = []
       knownActIds.clear()
       acts.forEach((act) => knownActIds.add(act.id))
       stopDrain()
@@ -209,16 +153,15 @@ onBeforeUnmount(() => {
 
     <p v-if="error" class="surface-act-stream-error">{{ error }}</p>
 
-    <div v-else-if="visibleLines.length > 0" class="surface-act-window">
+    <div v-else-if="visibleActs.length > 0" class="surface-act-window">
       <TransitionGroup tag="ol" name="surface-act-row" class="surface-act-list">
-        <li v-for="line in visibleLines" :key="line.id" class="surface-act-list-item">
+        <li v-for="act in visibleActs" :key="act.id" class="surface-act-list-item">
           <SurfaceActLine
-            :role="line.role"
-            :text="line.text"
+            :act="act"
             :reducedMotion="reducedMotion"
-            :typing-active="typingLineId === line.id"
-            :cursor-visible="cursorLineId === line.id"
-            @typing-complete="completeTyping(line.id)"
+            :typing-active="typingActId === act.id"
+            :cursor-visible="cursorActId === act.id"
+            @typing-complete="completeTyping(act.id)"
           />
         </li>
       </TransitionGroup>

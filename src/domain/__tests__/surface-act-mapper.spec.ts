@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import { dedupeSurfaceActs, mapTxToSurfaceActs, sortSurfaceActs } from '../surface-act-mapper'
+import { surfaceActKindCategories } from '../surface-act'
 
 describe('surface-act-mapper', () => {
-  it('maps contract and action pairs to canonical event labels', () => {
+  it('maps contract and action pairs to institutional assertions', () => {
     const instantiateTx = {
       height: '10',
       txhash: 'TX-INST',
@@ -56,8 +57,7 @@ describe('surface-act-mapper', () => {
       {
         tx: instantiateTx,
         kind: 'identity.created',
-        title: 'IDENTITY REGISTERED',
-        description: 'registered as an Axone identity',
+        assertion: 'Identity recorded for axone1contract.',
       },
       {
         tx: makeExecuteTx('TX-CAP', [
@@ -68,8 +68,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1cap' },
         ]),
         kind: 'capability.installed',
-        title: 'CAPABILITY INSTALLED',
-        description: 'installed the requested modules',
+        assertion: 'Capabilities installed for axone1cap.',
       },
       {
         tx: makeExecuteTx('TX-GOV', [
@@ -81,8 +80,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1gov' },
         ]),
         kind: 'governance.instantiated',
-        title: 'GOVERNANCE INSTANTIATED',
-        description: 'governance capability was instantiated',
+        assertion: 'Governance established for axone1gov.',
       },
       {
         tx: makeExecuteTx('TX-REC', [
@@ -94,8 +92,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1gov' },
         ]),
         kind: 'governance.decision.recorded',
-        title: 'ACT RECORDED',
-        description: 'Verdict: gov:permitted',
+        assertion: 'Decision recorded by axone1gov.',
       },
       {
         tx: makeExecuteTx('TX-REV', [
@@ -107,8 +104,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1gov' },
         ]),
         kind: 'governance.constitution.revised',
-        title: 'GOVERNANCE REVISED',
-        description: 'governance constitution was revised',
+        assertion: 'Constitution revised by axone1gov.',
       },
       {
         tx: makeExecuteTx('TX-VCI', [
@@ -118,8 +114,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1vc' },
         ]),
         kind: 'credential.authority.instantiated',
-        title: 'CREDENTIAL AUTHORITY INSTANTIATED',
-        description: 'credential authority was instantiated',
+        assertion: 'Credential authority established for axone1vc.',
       },
       {
         tx: makeExecuteTx('TX-ISS', [
@@ -135,8 +130,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1vc' },
         ]),
         kind: 'credential.issued',
-        title: 'CREDENTIAL ISSUED',
-        description: 'credential was issued by the authority',
+        assertion: 'Credential issued to axone1subject.',
       },
       {
         tx: makeExecuteTx('TX-REVK', [
@@ -149,8 +143,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1vc' },
         ]),
         kind: 'credential.revoked',
-        title: 'CREDENTIAL REVOKED',
-        description: 'credential was revoked by the authority',
+        assertion: 'Credential revoked by axone1issuer.',
       },
     ] as const
 
@@ -159,9 +152,14 @@ describe('surface-act-mapper', () => {
 
       expect(acts).toHaveLength(1)
       expect(acts[0]?.kind).toBe(testCase.kind)
-      expect(acts[0]?.title).toBe(testCase.title)
-      expect(acts[0]?.description).toContain(testCase.description)
+      expect(acts[0]?.assertion).toBe(testCase.assertion)
     }
+
+    const verdict = mapTxToSurfaceActs(cases[3].tx as never)[0]!
+    expect(surfaceActKindCategories[verdict.kind]).toBe('VERDICT')
+    expect(verdict.payload.verdict).toBe('gov:permitted')
+    expect(verdict.assertion).not.toContain('record_decision')
+    expect(verdict.assertion).not.toContain('gov:permitted')
   })
 
   it('dedupes and sorts acts by chain order', () => {
@@ -176,6 +174,7 @@ describe('surface-act-mapper', () => {
         timestamp: '2026-07-09T12:00:00Z',
         title: 'IDENTITY CREATED',
         description: '',
+        assertion: '',
         payload: {},
       },
       {
@@ -188,6 +187,7 @@ describe('surface-act-mapper', () => {
         timestamp: '2026-07-09T12:00:00Z',
         title: 'IDENTITY CREATED',
         description: '',
+        assertion: '',
         payload: {},
       },
       {
@@ -200,6 +200,7 @@ describe('surface-act-mapper', () => {
         timestamp: '2026-07-09T12:00:00Z',
         title: 'IDENTITY CREATED',
         description: '',
+        assertion: '',
         payload: {},
       },
     ])
