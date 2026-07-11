@@ -91,6 +91,12 @@ describe('useSurfaceActs', () => {
     await nextTick()
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
+    for (const [request] of fetchMock.mock.calls) {
+      const searchParams = new URL(String(request)).searchParams
+      expect(searchParams.get('page')).toBe('1')
+      expect(searchParams.get('limit')).toBe('3')
+      expect(searchParams.get('pagination.limit')).toBeNull()
+    }
 
     await vi.advanceTimersByTimeAsync(15000)
     await flushPromises()

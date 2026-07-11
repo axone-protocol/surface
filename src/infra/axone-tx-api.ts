@@ -15,7 +15,8 @@ async function fetchTxsByAction(
 ): Promise<FetchedTxBatch> {
   const url = new URL('/cosmos/tx/v1beta1/txs', AXONE_API_BASE)
   url.searchParams.set('query', `message.action='${action}'`)
-  url.searchParams.set('pagination.limit', String(limit))
+  url.searchParams.set('page', '1')
+  url.searchParams.set('limit', String(limit))
   url.searchParams.set('order_by', 'ORDER_BY_DESC')
 
   const response = await fetch(url, {
