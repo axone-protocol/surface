@@ -2,6 +2,7 @@ import { type CosmosTxListResponse, type CosmosTxResponse } from './axone-event-
 
 const AXONE_API_BASE = 'https://api.axone.aknodes.net'
 const DEFAULT_LIMIT = 3
+const MAX_BLOCK_CACHE_ENTRIES = 12
 const blockTransactionsByHeight = new Map<number, Promise<string[]>>()
 
 export type FetchedTxBatch = {
@@ -54,6 +55,8 @@ async function fetchBlockTransactionHashes(height: number, signal?: AbortSignal)
 function blockTransactionHashes(height: number, signal?: AbortSignal) {
   const cached = blockTransactionsByHeight.get(height)
   if (cached) {
+    blockTransactionsByHeight.delete(height)
+    blockTransactionsByHeight.set(height, cached)
     return cached
   }
 
@@ -62,6 +65,14 @@ function blockTransactionHashes(height: number, signal?: AbortSignal) {
     throw error
   })
   blockTransactionsByHeight.set(height, request)
+  while (blockTransactionsByHeight.size > MAX_BLOCK_CACHE_ENTRIES) {
+    const oldestHeight = blockTransactionsByHeight.keys().next().value
+    if (oldestHeight === undefined) {
+      break
+    }
+
+    blockTransactionsByHeight.delete(oldestHeight)
+  }
   return request
 }
 

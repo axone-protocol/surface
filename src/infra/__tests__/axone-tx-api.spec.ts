@@ -44,4 +44,18 @@ describe('resolveTransactionEntries', () => {
 
     expect(entries.size).toBe(0)
   })
+
+  it('bounds the block cache and evicts the least recently used height', async () => {
+    const fetchMock = vi
+      .fn<(input: RequestInfo | URL) => Promise<Response>>()
+      .mockResolvedValue(response({ block: { data: { txs: [] } } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await resolveTransactionEntries(
+      Array.from({ length: 13 }, (_, index) => ({ height: String(200 + index) })),
+    )
+    await resolveTransactionEntries([{ height: '200' }])
+
+    expect(fetchMock).toHaveBeenCalledTimes(14)
+  })
 })
