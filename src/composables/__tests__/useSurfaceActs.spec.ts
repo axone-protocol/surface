@@ -28,12 +28,16 @@ describe('useSurfaceActs', () => {
       .mockImplementation(async (input) => {
         const url = String(input)
 
+        if (url.includes('/cosmos/base/tendermint/v1beta1/blocks/')) {
+          return createResponse({ block: { data: { txs: ['YWJj'] } } })
+        }
+
         if (url.includes('MsgInstantiateContract2')) {
           return createResponse({
             tx_responses: [
               {
                 height: '10',
-                txhash: 'TX-INST',
+                txhash: 'BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD',
                 timestamp: '2026-07-09 12:00 UTC',
                 tx: {
                   body: { messages: [{ '@type': '/cosmwasm.wasm.v1.MsgInstantiateContract2' }] },
@@ -56,7 +60,7 @@ describe('useSurfaceActs', () => {
           tx_responses: [
             {
               height: '11',
-              txhash: 'TX-EXEC',
+              txhash: 'BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD',
               timestamp: '2026-07-09 12:01 UTC',
               tx: { body: { messages: [{ '@type': '/cosmwasm.wasm.v1.MsgExecuteContract' }] } },
               events: [
@@ -90,8 +94,10 @@ describe('useSurfaceActs', () => {
     await flushPromises()
     await nextTick()
 
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    for (const [request] of fetchMock.mock.calls) {
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    for (const [request] of fetchMock.mock.calls.filter(
+      ([request]) => !String(request).includes('/cosmos/base/tendermint/v1beta1/blocks/'),
+    )) {
       const searchParams = new URL(String(request)).searchParams
       expect(searchParams.get('page')).toBe('1')
       expect(searchParams.get('limit')).toBe('3')
@@ -102,7 +108,7 @@ describe('useSurfaceActs', () => {
     await flushPromises()
     await nextTick()
 
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(6)
   })
 
   it('exposes an error when the chain request fails', async () => {
@@ -121,5 +127,44 @@ describe('useSurfaceActs', () => {
 
     expect((wrapper.vm as { error: string | undefined }).error).toBe('offline')
     expect((wrapper.vm as { loading: boolean }).loading).toBe(false)
+  })
+
+  it('reports an unavailable register when transactions cannot be verified in their blocks', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<(input: RequestInfo | URL) => Promise<Response>>().mockImplementation(async (input) => {
+        const url = String(input)
+        if (url.includes('/cosmos/base/tendermint/v1beta1/blocks/')) {
+          return createResponse({}, false, 503)
+        }
+
+        return createResponse({
+          tx_responses: [
+            {
+              height: '12',
+              txhash: 'TX-UNVERIFIED',
+              timestamp: '2026-07-09T12:01:00Z',
+              tx: { body: { messages: [{ '@type': '/cosmwasm.wasm.v1.MsgExecuteContract' }] } },
+              events: [],
+            },
+          ],
+        })
+      }),
+    )
+
+    const Harness = defineComponent({
+      setup() {
+        return useSurfaceActs()
+      },
+      template: '<div />',
+    })
+
+    const wrapper = mount(Harness)
+    await flushPromises()
+    await nextTick()
+
+    expect((wrapper.vm as { error: string | undefined }).error).toBe(
+      'Chain register temporarily unavailable.',
+    )
   })
 })

@@ -2,7 +2,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 
 import ChainPollingStatus from './ChainPollingStatus.vue'
-import SurfaceActItem from './SurfaceActItem.vue'
+import SurfaceActLine from './SurfaceActLine.vue'
 import type { SurfaceAct } from '../domain/surface-act'
 
 const props = defineProps<{
@@ -15,12 +15,13 @@ const props = defineProps<{
   registerSummary?: string
 }>()
 
-const registerWindowSize = 3
+const registerActWindowSize = 3
 const visibleActs = ref<SurfaceAct[]>([])
 const pendingActs = ref<SurfaceAct[]>([])
-let drainResolver: (() => void) | undefined
 const typingActId = ref<string | undefined>()
 const cursorActId = ref<string | undefined>()
+const knownActIds = new Set<string>()
+let drainResolver: (() => void) | undefined
 let draining = false
 let drainGeneration = 0
 
@@ -34,17 +35,35 @@ function stopDrain() {
   draining = false
 }
 
+function currentActs() {
+  return props.acts.slice(0, registerActWindowSize).reverse()
+}
+
+function pruneKnownActIds() {
+  const retainedIds = new Set([
+    ...currentActs().map((act) => act.id),
+    ...visibleActs.value.map((act) => act.id),
+    ...pendingActs.value.map((act) => act.id),
+  ])
+
+  knownActIds.forEach((actId) => {
+    if (!retainedIds.has(actId)) {
+      knownActIds.delete(actId)
+    }
+  })
+}
+
 function enqueueMissingActs() {
-  // The API is newest-first, while the fixed register is rendered like paper:
-  // oldest visible line at the top and the newest line at the bottom.
-  const targetWindow = props.acts.slice(0, registerWindowSize).reverse()
-  const currentIds = new Set([...visibleActs.value, ...pendingActs.value].map((act) => act.id))
-  const missingActs = targetWindow.filter((act) => !currentIds.has(act.id))
+  // The API is newest-first, while the register is written like paper:
+  // the oldest retained act is printed before the newest one.
+  pruneKnownActIds()
+  const missingActs = currentActs().filter((act) => !knownActIds.has(act.id))
 
   if (missingActs.length === 0) {
     return
   }
 
+  missingActs.forEach((act) => knownActIds.add(act.id))
   pendingActs.value = [...pendingActs.value, ...missingActs]
   if (!draining) {
     void drainVisibleActs()
@@ -63,13 +82,14 @@ async function drainVisibleActs() {
     while (generation === drainGeneration && pendingActs.value.length > 0) {
       const next = pendingActs.value[0]!
       pendingActs.value = pendingActs.value.slice(1)
-      visibleActs.value = [...visibleActs.value, next].slice(-registerWindowSize)
-      cursorActId.value = next.id
+      visibleActs.value = [...visibleActs.value, next].slice(-registerActWindowSize)
 
       if (props.reducedMotion) {
+        cursorActId.value = undefined
         continue
       }
 
+      cursorActId.value = next.id
       typingActId.value = next.id
       await new Promise<void>((resolve) => {
         drainResolver = resolve
@@ -107,11 +127,13 @@ watch(
   () => props.reducedMotion,
   () => {
     if (props.reducedMotion) {
-      visibleActs.value = props.acts.slice(0, registerWindowSize).reverse()
-      cursorActId.value = visibleActs.value[visibleActs.value.length - 1]?.id
+      const acts = currentActs()
+      visibleActs.value = acts
+      cursorActId.value = undefined
       pendingActs.value = []
+      knownActIds.clear()
+      acts.forEach((act) => knownActIds.add(act.id))
       stopDrain()
-      draining = false
       return
     }
 
@@ -149,7 +171,7 @@ onBeforeUnmount(() => {
     <div v-else-if="visibleActs.length > 0" class="surface-act-window">
       <TransitionGroup tag="ol" name="surface-act-row" class="surface-act-list">
         <li v-for="act in visibleActs" :key="act.id" class="surface-act-list-item">
-          <SurfaceActItem
+          <SurfaceActLine
             :act="act"
             :reducedMotion="reducedMotion"
             :typing-active="typingActId === act.id"
