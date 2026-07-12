@@ -40,6 +40,9 @@ describe('SurfaceActStream', () => {
     expect(records[0]!.text()).toContain('Identity recorded for axone1oldest.')
     expect(records[1]!.text()).toContain('Identity recorded for axone1newest.')
     expect(records[0]!.find('.surface-act-category').text()).toBe('IDENTITY')
+    expect(records[0]!.find('.surface-act-inscription').attributes('aria-label')).toBe(
+      'Identity recorded for axone1oldest.',
+    )
     expect(records[0]!.find('.surface-act-proof').text()).toContain('entry1.0.0')
     expect(records[0]!.find('.surface-act-proof').text()).toContain('txTX-1')
     expect(records[0]!.find('.surface-act-proof').text()).toContain('time2026-07-09 12:01 UTC')

@@ -86,7 +86,7 @@ onBeforeUnmount(() => {
   <article class="surface-act-record">
     <div class="surface-act-assertion">
       <p class="surface-act-category">{{ surfaceActKindCategories[act.kind] }}</p>
-      <p class="surface-act-inscription">
+      <p class="surface-act-inscription" :aria-label="act.assertion">
         {{ typedAssertion
         }}<span v-if="cursorVisible" class="surface-act-cursor" aria-hidden="true" />
       </p>
