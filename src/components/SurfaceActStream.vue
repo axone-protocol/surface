@@ -39,9 +39,24 @@ function currentActs() {
   return props.acts.slice(0, registerActWindowSize).reverse()
 }
 
+function pruneKnownActIds() {
+  const retainedIds = new Set([
+    ...currentActs().map((act) => act.id),
+    ...visibleActs.value.map((act) => act.id),
+    ...pendingActs.value.map((act) => act.id),
+  ])
+
+  knownActIds.forEach((actId) => {
+    if (!retainedIds.has(actId)) {
+      knownActIds.delete(actId)
+    }
+  })
+}
+
 function enqueueMissingActs() {
   // The API is newest-first, while the register is written like paper:
   // the oldest retained act is printed before the newest one.
+  pruneKnownActIds()
   const missingActs = currentActs().filter((act) => !knownActIds.has(act.id))
 
   if (missingActs.length === 0) {
