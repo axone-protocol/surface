@@ -9,7 +9,6 @@ const moduleAdministratorsByAddress = new Map<string, Promise<string | undefined
 
 export type FetchedTxBatch = {
   txResponses: CosmosTxResponse[]
-  total: number
 }
 
 type CosmosBlockResponse = {
@@ -198,7 +197,6 @@ async function fetchTxsByAction(
   const data = (await response.json()) as CosmosTxListResponse
   return {
     txResponses: data.tx_responses ?? [],
-    total: Number.parseInt(data.total ?? '0', 10) || 0,
   }
 }
 
@@ -208,8 +206,4 @@ export function fetchInstantiateContract2Txs(signal?: AbortSignal, limit = DEFAU
 
 export function fetchExecuteContractTxs(signal?: AbortSignal, limit = DEFAULT_LIMIT) {
   return fetchTxsByAction('/cosmwasm.wasm.v1.MsgExecuteContract', signal, limit)
-}
-
-export function mergeTxResponses(...groups: CosmosTxResponse[][]) {
-  return groups.flat()
 }

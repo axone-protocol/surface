@@ -29,7 +29,6 @@ export type CosmosTxResponse = {
 
 export type CosmosTxListResponse = {
   tx_responses?: CosmosTxResponse[]
-  total?: string
 }
 
 export function messageType(message: CosmosMessage | undefined) {

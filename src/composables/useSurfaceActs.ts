@@ -20,9 +20,7 @@ type UseSurfaceActsState = {
   acts: Ref<SurfaceAct[]>
   loading: Ref<boolean>
   error: Ref<string | undefined>
-  lastSync: Ref<Date | undefined>
   polling: Ref<boolean>
-  total: Ref<number | undefined>
 }
 
 const pollIntervalMs = 15000
@@ -67,9 +65,7 @@ export function useSurfaceActs(): UseSurfaceActsState {
   const acts = ref<SurfaceAct[]>([])
   const loading = ref(true)
   const error = ref<string | undefined>()
-  const lastSync = ref<Date | undefined>()
   const polling = ref(false)
-  const total = ref<number | undefined>()
 
   let pollTimer: number | undefined
   let active = true
@@ -110,8 +106,6 @@ export function useSurfaceActs(): UseSurfaceActsState {
       }
       const currentActs = mergeAndNormalizeActs(acts.value, incomingActs, entriesByTxHash)
       acts.value = currentActs
-      total.value = (instantiateTxs.total || 0) + (executeTxs.total || 0)
-      lastSync.value = new Date()
       error.value = undefined
     } catch (caught) {
       error.value = normalizeError(caught)
@@ -140,8 +134,6 @@ export function useSurfaceActs(): UseSurfaceActsState {
     acts,
     loading,
     error,
-    lastSync,
     polling,
-    total,
   }
 }
