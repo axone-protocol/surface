@@ -21,7 +21,7 @@ const activeActorIndex = ref(0)
 const selectedNetworkKey = ref<Network['key']>('testnet')
 const networkMenuOpen = ref(false)
 const surfaceActionsEl = ref<HTMLElement | null>(null)
-const { acts, loading, error, lastSync, polling, total } = useSurfaceActs()
+const { acts, loading, error, polling } = useSurfaceActs()
 
 let motionQuery: MediaQueryList | null = null
 let actorTimer: number | undefined
@@ -35,35 +35,9 @@ const activeLaw = computed(
 )
 const activeLawIndex = computed(() => surfaceLaws.findIndex((law) => law.id === activeLaw.value.id))
 const activeActorLine = computed(() => actorLines[activeActorIndex.value] ?? actorLines[0])
-const hasValidSync = computed(() => !!lastSync.value && !error.value)
-const registerSummary = computed(() => {
-  if (error.value) {
-    return 'CHAIN UNAVAILABLE'
-  }
-
-  if (hasValidSync.value) {
-    return total.value != null ? `${total.value} RECORDS` : undefined
-  }
-
-  return undefined
-})
 const selectedNetwork = computed(
   () => networks.find((network) => network.key === selectedNetworkKey.value) ?? networks[0]!,
 )
-const lastSyncLabel = computed(() => {
-  const sync = lastSync.value
-  if (!sync) {
-    return undefined
-  }
-
-  return new Intl.DateTimeFormat('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-    timeZone: 'UTC',
-  }).format(sync)
-})
 
 function updateReducedMotion(event?: MediaQueryListEvent) {
   prefersReducedMotion.value = event?.matches ?? motionQuery?.matches ?? false
@@ -245,8 +219,6 @@ onBeforeUnmount(() => {
         :error="error"
         :reduced-motion="prefersReducedMotion"
         :polling="polling"
-        :last-sync-label="lastSyncLabel"
-        :register-summary="registerSummary"
       />
     </section>
   </main>

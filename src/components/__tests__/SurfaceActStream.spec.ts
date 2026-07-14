@@ -43,11 +43,12 @@ describe('SurfaceActStream', () => {
     expect(records[0]!.find('.surface-act-inscription').attributes('aria-label')).toBe(
       'Identity recorded for axone1oldest.',
     )
-    expect(records[0]!.find('.surface-act-proof').text()).toContain('entry1.0.0')
+    expect(records[0]!.find('.surface-act-entry').text()).toContain('1.0.0')
     expect(records[0]!.find('.surface-act-proof').text()).toContain('txTX-1')
     expect(records[0]!.find('.surface-act-proof').text()).toContain('time2026-07-09 12:01 UTC')
     expect(wrapper.text()).not.toContain('HEIGHT')
     expect(wrapper.text()).not.toContain('MSG')
+    expect(wrapper.find('.surface-act-column-head').text()).toBe('ENTRYSTATEMENTEVIDENCE')
     expect(wrapper.find('.surface-act-cursor').exists()).toBe(false)
   })
 

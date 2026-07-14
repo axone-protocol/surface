@@ -77,7 +77,8 @@ describe('App', () => {
     expect(wrapper.text()).toContain('axone-testnet')
     expect(wrapper.text()).toContain('CHAIN REGISTER')
     expect(wrapper.text()).toContain('Enter the surface')
-    expect(wrapper.text()).toContain('0 RECORDS')
+    expect(wrapper.text()).not.toContain('RECORDS')
+    expect(wrapper.text()).not.toContain('LAST SYNC')
     expect(wrapper.text()).not.toContain('Awaiting')
 
     await wrapper.get('.network-trigger').trigger('click')
@@ -85,7 +86,7 @@ describe('App', () => {
     expect(wrapper.text()).toContain('soon')
   })
 
-  it('does not show a zero-count heartbeat when the chain request fails', async () => {
+  it('does not show register metadata when the chain request fails', async () => {
     const matchMedia = createMatchMediaMock(true)
 
     const fetchMock = vi.fn<() => Promise<Response>>().mockRejectedValue(new Error('offline'))
@@ -109,7 +110,7 @@ describe('App', () => {
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.text()).toContain('CHAIN UNAVAILABLE')
-    expect(wrapper.text()).not.toContain('0 RECORDS')
+    expect(wrapper.text()).not.toContain('RECORDS')
+    expect(wrapper.text()).not.toContain('LAST SYNC')
   })
 })

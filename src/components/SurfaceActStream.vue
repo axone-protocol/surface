@@ -11,8 +11,6 @@ const props = defineProps<{
   error?: string
   reducedMotion: boolean
   polling: boolean
-  lastSyncLabel?: string
-  registerSummary?: string
 }>()
 
 const registerActWindowSize = 5
@@ -149,22 +147,14 @@ onBeforeUnmount(() => {
 <template>
   <section class="surface-act-stream" aria-labelledby="surface-act-stream-title">
     <header class="surface-act-stream-head">
-      <div class="surface-act-stream-head-main">
-        <p id="surface-act-stream-title">CHAIN REGISTER</p>
-      </div>
-      <div class="surface-act-stream-head-meta">
-        <span v-if="registerSummary" class="surface-act-stream-summary">{{ registerSummary }}</span>
-        <span
-          v-if="registerSummary && lastSyncLabel"
-          class="surface-act-stream-separator"
-          aria-hidden="true"
-          >·</span
-        >
-        <span v-if="lastSyncLabel" class="surface-act-stream-sync"
-          >LAST SYNC {{ lastSyncLabel }}</span
-        >
-      </div>
+      <p id="surface-act-stream-title">CHAIN REGISTER</p>
     </header>
+
+    <div class="surface-act-column-head" aria-hidden="true">
+      <span>ENTRY</span>
+      <span>STATEMENT</span>
+      <span>EVIDENCE</span>
+    </div>
 
     <p v-if="error" class="surface-act-stream-error">{{ error }}</p>
 

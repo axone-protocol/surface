@@ -18,6 +18,11 @@ const typedLength = ref(0)
 let typingTimer: number | undefined
 
 const typedAssertion = computed(() => props.act.assertion.slice(0, typedLength.value))
+const entryParts = computed(() => {
+  const entry = props.act.entry ?? '—'
+  const match = entry.match(/^(.*)(\.\d+\.\d+)$/)
+  return match ? { prefix: match[1], suffix: match[2] } : { prefix: entry, suffix: '' }
+})
 
 function shortValue(value: string) {
   if (value.length <= 24) {
@@ -84,6 +89,11 @@ onBeforeUnmount(() => {
 
 <template>
   <article class="surface-act-record">
+    <div class="surface-act-entry">
+      <p>{{ entryParts.prefix }}</p>
+      <p v-if="entryParts.suffix" class="surface-act-entry-suffix">{{ entryParts.suffix }}</p>
+    </div>
+
     <div class="surface-act-assertion">
       <p class="surface-act-category">{{ surfaceActKindCategories[act.kind] }}</p>
       <p class="surface-act-inscription" :aria-label="act.assertion">
@@ -93,10 +103,6 @@ onBeforeUnmount(() => {
     </div>
 
     <dl class="surface-act-proof">
-      <div>
-        <dt>entry</dt>
-        <dd>{{ act.entry ?? '—' }}</dd>
-      </div>
       <div>
         <dt>tx</dt>
         <dd>{{ shortValue(act.txhash) }}</dd>
