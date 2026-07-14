@@ -1,6 +1,5 @@
 export type SurfaceActKind =
   | 'identity.created'
-  | 'capability.installed'
   | 'governance.instantiated'
   | 'governance.decision.recorded'
   | 'governance.constitution.revised'
@@ -29,7 +28,6 @@ export type SurfaceAct = {
 
 export const surfaceActKindLabels: Record<SurfaceActKind, string> = {
   'identity.created': 'IDENTITY REGISTERED',
-  'capability.installed': 'CAPABILITY INSTALLED',
   'governance.instantiated': 'GOVERNANCE INSTANTIATED',
   'governance.decision.recorded': 'DECISION RECORDED',
   'governance.constitution.revised': 'GOVERNANCE REVISED',
@@ -40,18 +38,16 @@ export const surfaceActKindLabels: Record<SurfaceActKind, string> = {
 
 export const surfaceActKindCategories: Record<SurfaceActKind, string> = {
   'identity.created': 'IDENTITY',
-  'capability.installed': 'CAPABILITY',
   'governance.instantiated': 'GOVERNANCE',
   'governance.decision.recorded': 'VERDICT',
   'governance.constitution.revised': 'GOVERNANCE',
-  'credential.authority.instantiated': 'CREDENTIAL',
+  'credential.authority.instantiated': 'AUTHORITY',
   'credential.issued': 'CREDENTIAL',
   'credential.revoked': 'CREDENTIAL',
 }
 
 export const surfaceActKindDescriptions: Record<SurfaceActKind, string> = {
   'identity.created': 'Identity recorded.',
-  'capability.installed': 'Capabilities recorded.',
   'governance.instantiated': 'Governance recorded.',
   'governance.decision.recorded': 'Decision recorded.',
   'governance.constitution.revised': 'Constitution revised.',

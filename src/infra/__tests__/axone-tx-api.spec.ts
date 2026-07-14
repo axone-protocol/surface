@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { resolveTransactionEntries } from '../axone-tx-api'
+import { resolveModuleAdministrators, resolveTransactionEntries } from '../axone-tx-api'
 
 function response(body: unknown, ok = true): Response {
   return { ok, status: ok ? 200 : 503, json: async () => body } as unknown as Response
@@ -57,5 +57,19 @@ describe('resolveTransactionEntries', () => {
     await resolveTransactionEntries([{ height: '200' }])
 
     expect(fetchMock).toHaveBeenCalledTimes(14)
+  })
+
+  it('resolves a module owner from its contract administrator', async () => {
+    const fetchMock = vi
+      .fn<(input: RequestInfo | URL) => Promise<Response>>()
+      .mockResolvedValue(response({ contract_info: { admin: 'axone1account' } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const administrators = await resolveModuleAdministrators(['axone1module-for-test'])
+
+    expect(administrators.get('axone1module-for-test')).toBe('axone1account')
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      '/cosmwasm/wasm/v1/contract/axone1module-for-test',
+    )
   })
 })

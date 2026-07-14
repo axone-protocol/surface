@@ -3,7 +3,9 @@ import { type CosmosTxListResponse, type CosmosTxResponse } from './axone-event-
 const AXONE_API_BASE = 'https://api.axone.aknodes.net'
 const DEFAULT_LIMIT = 5
 const MAX_BLOCK_CACHE_ENTRIES = 12
+const MAX_MODULE_ADMIN_CACHE_ENTRIES = 24
 const blockTransactionsByHeight = new Map<number, Promise<string[]>>()
+const moduleAdministratorsByAddress = new Map<string, Promise<string | undefined>>()
 
 export type FetchedTxBatch = {
   txResponses: CosmosTxResponse[]
@@ -15,6 +17,12 @@ type CosmosBlockResponse = {
     data?: {
       txs?: string[]
     }
+  }
+}
+
+type CosmosContractInfoResponse = {
+  contract_info?: {
+    admin?: string
   }
 }
 
@@ -74,6 +82,59 @@ function blockTransactionHashes(height: number, signal?: AbortSignal) {
     blockTransactionsByHeight.delete(oldestHeight)
   }
   return request
+}
+
+async function fetchModuleAdministrator(address: string, signal?: AbortSignal) {
+  const url = new URL(`/cosmwasm/wasm/v1/contract/${address}`, AXONE_API_BASE)
+  const response = await fetch(url, {
+    method: 'GET',
+    signal,
+    headers: { accept: 'application/json' },
+  })
+  if (!response.ok) {
+    throw new Error(`Axone contract request failed (${response.status})`)
+  }
+
+  const data = (await response.json()) as CosmosContractInfoResponse
+  return data.contract_info?.admin
+}
+
+function moduleAdministrator(address: string, signal?: AbortSignal) {
+  const cached = moduleAdministratorsByAddress.get(address)
+  if (cached) {
+    moduleAdministratorsByAddress.delete(address)
+    moduleAdministratorsByAddress.set(address, cached)
+    return cached
+  }
+
+  const request = fetchModuleAdministrator(address, signal).catch((error: unknown) => {
+    moduleAdministratorsByAddress.delete(address)
+    throw error
+  })
+  moduleAdministratorsByAddress.set(address, request)
+  while (moduleAdministratorsByAddress.size > MAX_MODULE_ADMIN_CACHE_ENTRIES) {
+    const oldestAddress = moduleAdministratorsByAddress.keys().next().value
+    if (oldestAddress === undefined) {
+      break
+    }
+    moduleAdministratorsByAddress.delete(oldestAddress)
+  }
+  return request
+}
+
+export async function resolveModuleAdministrators(addresses: string[], signal?: AbortSignal) {
+  const resolved = await Promise.allSettled(
+    addresses.map(
+      async (address) => [address, await moduleAdministrator(address, signal)] as const,
+    ),
+  )
+  const administrators = new Map<string, string>()
+  for (const result of resolved) {
+    if (result.status === 'fulfilled' && result.value[1]) {
+      administrators.set(result.value[0], result.value[1])
+    }
+  }
+  return administrators
 }
 
 /**

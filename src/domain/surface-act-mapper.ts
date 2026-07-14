@@ -72,6 +72,76 @@ function assertionSubject(...values: Array<string | undefined>) {
   return truncateIdentityAddress(values.find((value) => value && value.length > 0) ?? 'identity')
 }
 
+function installedModuleIds(value: string | undefined) {
+  if (!value) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(value)
+    if (Array.isArray(parsed)) {
+      return parsed.filter((moduleId): moduleId is string => typeof moduleId === 'string')
+    }
+  } catch {
+    // Older event encodings may not be JSON. Their module IDs still remain
+    // identifiable in the raw attribute below.
+  }
+
+  return value.split(',').map((moduleId) => moduleId.trim())
+}
+
+function credentialSubjects(message: CosmosMessage) {
+  const input = message.msg
+  if (!input || typeof input !== 'object') {
+    return {}
+  }
+
+  const module = (input as Record<string, unknown>).module
+  if (!module || typeof module !== 'object') {
+    return {}
+  }
+
+  const issueCredential = (module as Record<string, unknown>).issue_credential
+  if (!issueCredential || typeof issueCredential !== 'object') {
+    return {}
+  }
+
+  const credential = (issueCredential as Record<string, unknown>).credential
+  if (typeof credential !== 'string') {
+    return {}
+  }
+
+  try {
+    const source = new TextDecoder().decode(
+      Uint8Array.from(atob(credential), (character) => character.charCodeAt(0)),
+    )
+    const json = JSON.parse(source) as {
+      issuer?: string | { id?: string }
+      credentialSubject?: string | { id?: string }
+    }
+    const issuer = typeof json.issuer === 'string' ? json.issuer : json.issuer?.id
+    const subject =
+      typeof json.credentialSubject === 'string'
+        ? json.credentialSubject
+        : json.credentialSubject?.id
+    return { issuer, subject }
+  } catch {
+    // The Axone stimulation payload is N-Quads rather than JSON-LD.
+  }
+
+  try {
+    const source = new TextDecoder().decode(
+      Uint8Array.from(atob(credential), (character) => character.charCodeAt(0)),
+    )
+    return {
+      issuer: source.match(/credentials#issuer>\s+<([^>]+)>/)?.[1],
+      subject: source.match(/credentials#credentialSubject>\s+<([^>]+)>/)?.[1],
+    }
+  } catch {
+    return {}
+  }
+}
+
 function makeActBase(
   tx: CosmosTxResponse,
   messageIndex: number,
@@ -100,12 +170,15 @@ function fromInstantiate(
   messageIndex: number,
 ): SurfaceAct[] {
   const instantiateEvent = instantiateEventForMessage(tx, messageIndex)
-  const contractAddress =
-    eventAttribute(instantiateEvent, '_contract_address') ||
-    eventAttribute(extractWasmAbstractEvents(tx)[messageIndex], '_contract_address') ||
-    String(message['contract_address'] ?? '')
+  const abstractAccountEvent = extractWasmAbstractEvents(tx).find(
+    (event, eventIndex) =>
+      messageIndexForEvent(eventIndex, tx) === messageIndex &&
+      eventAttribute(event, 'contract') === 'abstract:account' &&
+      eventAttribute(event, 'action') === 'instantiate',
+  )
+  const contractAddress = eventAttribute(abstractAccountEvent, '_contract_address')
 
-  if (messageType(message) !== instantiateAction || !contractAddress) {
+  if (messageType(message) !== instantiateAction || !instantiateEvent || !contractAddress) {
     return []
   }
 
@@ -116,7 +189,7 @@ function fromInstantiate(
       contractAddress,
       action: 'instantiate',
       description: surfaceActKindDescriptions['identity.created'],
-      assertion: `Identity recorded for ${truncateIdentityAddress(contractAddress)}.`,
+      assertion: `Identity created for ${truncateIdentityAddress(contractAddress)}.`,
       payload: stringPayload({
         _contract_address: contractAddress,
         code_id: String(message.code_id ?? message['codeId'] ?? ''),
@@ -128,13 +201,15 @@ function fromInstantiate(
 
 function mapWasmAbstractEvent(
   tx: CosmosTxResponse,
+  message: CosmosMessage,
   messageIndex: number,
   actIndex: number,
   eventIndex: number,
-): SurfaceAct | null {
+  moduleAdministrators: ReadonlyMap<string, string>,
+): SurfaceAct[] {
   const event = extractWasmAbstractEvents(tx)[eventIndex]
   if (!event) {
-    return null
+    return []
   }
 
   const contract = eventAttribute(event, 'contract')
@@ -145,157 +220,231 @@ function mapWasmAbstractEvent(
   const signer = eventAttribute(event, 'signer') || eventAttribute(event, 'sender')
 
   if (contract === 'abstract:account' && action === 'install_modules') {
-    return {
-      ...base,
-      kind: 'capability.installed' as const,
-      signer,
-      contract,
-      contractAddress,
-      action,
-      title: surfaceActKindLabels['capability.installed'],
-      description: surfaceActKindDescriptions['capability.installed'],
-      assertion: `Capabilities installed for ${assertionSubject(contractAddress, signer)}.`,
-      payload: stringPayload({
-        installed_modules: attributes.installed_modules ?? '',
-        _contract_address: contractAddress,
-        msg_index: String(messageIndex),
-      }),
-    }
+    const installedModules = installedModuleIds(attributes.installed_modules)
+    const moduleKinds = [
+      ['axone:axone-gov:', 'governance.instantiated'],
+      ['axone:axone-vc:', 'credential.authority.instantiated'],
+    ] as const
+
+    return moduleKinds.flatMap(([modulePrefix, kind], moduleIndex) => {
+      if (!installedModules.some((moduleId) => moduleId.startsWith(modulePrefix))) {
+        return []
+      }
+
+      const assertion =
+        kind === 'governance.instantiated'
+          ? `Governance established on ${assertionSubject(contractAddress, signer)}.`
+          : `Credential authority established on ${assertionSubject(contractAddress, signer)}.`
+      return [
+        {
+          ...makeActBase(tx, messageIndex, actIndex + moduleIndex, kind),
+          signer,
+          contract,
+          contractAddress,
+          action,
+          assertion,
+          payload: stringPayload({
+            installed_modules: attributes.installed_modules ?? '',
+            _contract_address: contractAddress,
+            msg_index: String(messageIndex),
+          }),
+        },
+      ]
+    })
   }
 
-  if (contract === 'axone:axone-gov' && action === 'instantiate') {
-    return {
-      ...base,
-      kind: 'governance.instantiated' as const,
-      signer,
-      contract,
-      contractAddress,
-      action,
-      title: surfaceActKindLabels['governance.instantiated'],
-      description: surfaceActKindDescriptions['governance.instantiated'],
-      assertion: `Governance established for ${assertionSubject(contractAddress, signer)}.`,
-      payload: stringPayload({
-        constitution_hash: attributes.constitution_hash ?? '',
-        constitution_revision: attributes.constitution_revision ?? '',
-        _contract_address: contractAddress,
-        msg_index: String(messageIndex),
-      }),
-    }
-  }
+  const abstractAccount = moduleAdministrators.get(contractAddress)
 
   if (contract === 'axone:axone-gov' && action === 'record_decision') {
-    const verdict = attributes.verdict ?? ''
-    return {
-      ...base,
-      kind: 'governance.decision.recorded' as const,
-      signer,
-      contract,
-      contractAddress,
-      action,
-      title: surfaceActKindLabels['governance.decision.recorded'],
-      description: surfaceActKindDescriptions['governance.decision.recorded'],
-      assertion: `Decision recorded by ${assertionSubject(signer, contractAddress)}.`,
-      payload: stringPayload({
-        decision_id: attributes.decision_id ?? '',
-        constitution_revision: attributes.constitution_revision ?? '',
-        constitution_hash: attributes.constitution_hash ?? '',
-        case_hash: attributes.case_hash ?? '',
-        verdict,
-        verdict_hash: attributes.verdict_hash ?? '',
-        motivation_hash: attributes.motivation_hash ?? '',
-        _contract_address: contractAddress,
-        msg_index: String(messageIndex),
-      }),
+    if (!abstractAccount) {
+      return []
     }
+
+    const verdict = attributes.verdict ?? ''
+    return [
+      {
+        ...base,
+        kind: 'governance.decision.recorded' as const,
+        signer,
+        contract,
+        contractAddress,
+        action,
+        title: surfaceActKindLabels['governance.decision.recorded'],
+        description: surfaceActKindDescriptions['governance.decision.recorded'],
+        assertion: `Decision recorded by ${assertionSubject(abstractAccount)}.`,
+        payload: stringPayload({
+          decision_id: attributes.decision_id ?? '',
+          constitution_revision: attributes.constitution_revision ?? '',
+          constitution_hash: attributes.constitution_hash ?? '',
+          case_hash: attributes.case_hash ?? '',
+          verdict,
+          verdict_hash: attributes.verdict_hash ?? '',
+          motivation_hash: attributes.motivation_hash ?? '',
+          _contract_address: contractAddress,
+          abstract_account: abstractAccount,
+          msg_index: String(messageIndex),
+        }),
+      },
+    ]
   }
 
   if (contract === 'axone:axone-gov' && action === 'revise_constitution') {
-    return {
-      ...base,
-      kind: 'governance.constitution.revised' as const,
-      signer,
-      contract,
-      contractAddress,
-      action,
-      title: surfaceActKindLabels['governance.constitution.revised'],
-      description: surfaceActKindDescriptions['governance.constitution.revised'],
-      assertion: `Constitution revised by ${assertionSubject(signer, contractAddress)}.`,
-      payload: stringPayload({
-        constitution_revision: attributes.constitution_revision ?? '',
-        constitution_hash: attributes.constitution_hash ?? '',
-        _contract_address: contractAddress,
-        msg_index: String(messageIndex),
-      }),
+    if (!abstractAccount) {
+      return []
     }
-  }
 
-  if (contract === 'axone:axone-vc' && action === 'instantiate') {
-    return {
-      ...base,
-      kind: 'credential.authority.instantiated' as const,
-      signer,
-      contract,
-      contractAddress,
-      action,
-      title: surfaceActKindLabels['credential.authority.instantiated'],
-      description: surfaceActKindDescriptions['credential.authority.instantiated'],
-      assertion: `Credential authority established for ${assertionSubject(contractAddress, signer)}.`,
-      payload: stringPayload({
-        _contract_address: contractAddress,
-        msg_index: String(messageIndex),
-      }),
-    }
+    return [
+      {
+        ...base,
+        kind: 'governance.constitution.revised' as const,
+        signer,
+        contract,
+        contractAddress,
+        action,
+        title: surfaceActKindLabels['governance.constitution.revised'],
+        description: surfaceActKindDescriptions['governance.constitution.revised'],
+        assertion: `Governance amended on ${assertionSubject(abstractAccount)}.`,
+        payload: stringPayload({
+          constitution_revision: attributes.constitution_revision ?? '',
+          constitution_hash: attributes.constitution_hash ?? '',
+          _contract_address: contractAddress,
+          abstract_account: abstractAccount,
+          msg_index: String(messageIndex),
+        }),
+      },
+    ]
   }
 
   if (contract === 'axone:axone-vc' && action === 'issue_credential') {
-    return {
-      ...base,
-      kind: 'credential.issued' as const,
-      signer,
-      contract,
-      contractAddress,
-      action,
-      title: surfaceActKindLabels['credential.issued'],
-      description: surfaceActKindDescriptions['credential.issued'],
-      assertion: `Credential issued to ${assertionSubject(attributes.subject, signer, contractAddress)}.`,
-      payload: stringPayload({
-        identifier: attributes.identifier ?? '',
-        issuer: attributes.issuer ?? '',
-        subject: attributes.subject ?? '',
-        credential_type: attributes.credential_type ?? '',
-        valid_from: attributes.valid_from ?? '',
-        valid_until: attributes.valid_until ?? '',
-        _contract_address: contractAddress,
-        msg_index: String(messageIndex),
-      }),
+    const parsedSubjects = credentialSubjects(message)
+    const issuer = attributes.issuer || parsedSubjects.issuer
+    const subject = attributes.subject || parsedSubjects.subject
+    if (!issuer || !subject) {
+      return []
     }
+
+    return [
+      {
+        ...base,
+        kind: 'credential.issued' as const,
+        signer,
+        contract,
+        contractAddress,
+        action,
+        title: surfaceActKindLabels['credential.issued'],
+        description: surfaceActKindDescriptions['credential.issued'],
+        assertion: `Credential issued by ${assertionSubject(issuer)} to ${assertionSubject(subject)}.`,
+        payload: stringPayload({
+          identifier: attributes.identifier ?? '',
+          issuer,
+          subject,
+          credential_type: attributes.credential_type ?? '',
+          valid_from: attributes.valid_from ?? '',
+          valid_until: attributes.valid_until ?? '',
+          _contract_address: contractAddress,
+          msg_index: String(messageIndex),
+        }),
+      },
+    ]
   }
 
   if (contract === 'axone:axone-vc' && action === 'revoke_credential') {
-    return {
-      ...base,
-      kind: 'credential.revoked' as const,
-      signer,
-      contract,
-      contractAddress,
-      action,
-      title: surfaceActKindLabels['credential.revoked'],
-      description: surfaceActKindDescriptions['credential.revoked'],
-      assertion: `Credential revoked by ${assertionSubject(attributes.issuer, signer, contractAddress)}.`,
-      payload: stringPayload({
-        identifier: attributes.identifier ?? '',
-        issuer: attributes.issuer ?? '',
-        revoked_at: attributes.revoked_at ?? '',
-        _contract_address: contractAddress,
-        msg_index: String(messageIndex),
-      }),
+    if (!abstractAccount) {
+      return []
+    }
+
+    return [
+      {
+        ...base,
+        kind: 'credential.revoked' as const,
+        signer,
+        contract,
+        contractAddress,
+        action,
+        title: surfaceActKindLabels['credential.revoked'],
+        description: surfaceActKindDescriptions['credential.revoked'],
+        assertion: `Credential revoked by ${assertionSubject(abstractAccount)}.`,
+        payload: stringPayload({
+          identifier: attributes.identifier ?? '',
+          issuer: attributes.issuer ?? '',
+          revoked_at: attributes.revoked_at ?? '',
+          _contract_address: contractAddress,
+          abstract_account: abstractAccount,
+          msg_index: String(messageIndex),
+        }),
+      },
+    ]
+  }
+
+  return []
+}
+
+export function moduleContractAddresses(txs: CosmosTxResponse[]) {
+  return [
+    ...new Set(
+      txs.flatMap((tx) =>
+        extractWasmAbstractEvents(tx)
+          .filter((event) => {
+            const contract = eventAttribute(event, 'contract')
+            const action = eventAttribute(event, 'action')
+            return (
+              (contract === 'axone:axone-gov' &&
+                ['record_decision', 'revise_constitution'].includes(action)) ||
+              (contract === 'axone:axone-vc' && action === 'revoke_credential')
+            )
+          })
+          .map((event) => eventAttribute(event, '_contract_address'))
+          .filter(Boolean),
+      ),
+    ),
+  ]
+}
+
+export function moduleAdministratorsFromInstallations(txs: CosmosTxResponse[]) {
+  const administrators = new Map<string, string>()
+
+  for (const tx of txs) {
+    const events = extractWasmAbstractEvents(tx)
+    for (const [eventIndex, event] of events.entries()) {
+      if (
+        eventAttribute(event, 'contract') !== 'abstract:account' ||
+        eventAttribute(event, 'action') !== 'install_modules'
+      ) {
+        continue
+      }
+
+      const abstractAccount = eventAttribute(event, '_contract_address')
+      const messageIndex = messageIndexForEvent(eventIndex, tx)
+      if (!abstractAccount || messageIndex < 0) {
+        continue
+      }
+
+      for (const moduleEvent of events) {
+        if (Number.parseInt(eventAttribute(moduleEvent, 'msg_index'), 10) !== messageIndex) {
+          continue
+        }
+
+        const moduleAddress = eventAttribute(moduleEvent, '_contract_address')
+        const moduleContract = eventAttribute(moduleEvent, 'contract')
+        const moduleAction = eventAttribute(moduleEvent, 'action')
+        if (
+          moduleAddress &&
+          ['axone:axone-gov', 'axone:axone-vc'].includes(moduleContract) &&
+          moduleAction === 'instantiate'
+        ) {
+          administrators.set(moduleAddress, abstractAccount)
+        }
+      }
     }
   }
 
-  return null
+  return administrators
 }
 
-export function mapTxToSurfaceActs(tx: CosmosTxResponse) {
+export function mapTxToSurfaceActs(
+  tx: CosmosTxResponse,
+  moduleAdministrators: ReadonlyMap<string, string> = new Map(),
+) {
   const acts: SurfaceAct[] = []
   const abstractEvents = extractWasmAbstractEvents(tx)
 
@@ -318,11 +467,16 @@ export function mapTxToSurfaceActs(tx: CosmosTxResponse) {
         return
       }
 
-      const act = mapWasmAbstractEvent(tx, messageIndex, actIndex, eventIndex)
-      if (act) {
-        acts.push(act)
-        actIndex += 1
-      }
+      const mappedActs = mapWasmAbstractEvent(
+        tx,
+        message,
+        messageIndex,
+        actIndex,
+        eventIndex,
+        moduleAdministrators,
+      )
+      acts.push(...mappedActs)
+      actIndex += mappedActs.length
     })
   })
 

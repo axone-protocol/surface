@@ -3,11 +3,14 @@ import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
 import {
   dedupeSurfaceActs,
   mapTxToSurfaceActs,
+  moduleContractAddresses,
+  moduleAdministratorsFromInstallations,
   sortSurfaceActs,
 } from '../domain/surface-act-mapper'
 import {
   fetchExecuteContractTxs,
   fetchInstantiateContract2Txs,
+  resolveModuleAdministrators,
   resolveTransactionEntries,
 } from '../infra/axone-tx-api'
 import type { SurfaceAct } from '../domain/surface-act'
@@ -25,26 +28,31 @@ type UseSurfaceActsState = {
 const pollIntervalMs = 15000
 const registerActWindowSize = 5
 
-function mergeAndNormalizeActs(
-  current: SurfaceAct[],
-  txs: CosmosTxResponse[],
-  entriesByTxHash: Map<string, string>,
-) {
-  const incomingActs = txs.flatMap((tx) => {
-    const entryPrefix = entriesByTxHash.get(tx.txhash ?? '')
-    if (!entryPrefix) {
-      return []
-    }
-
-    return mapTxToSurfaceActs(tx).map((act) => ({
-      ...act,
-      entry: `${entryPrefix}.${act.msgIndex}`,
-    }))
-  })
-  return sortSurfaceActs(dedupeSurfaceActs([...incomingActs, ...current])).slice(
+function normalizeActs(current: SurfaceAct[], incoming: SurfaceAct[]) {
+  return sortSurfaceActs(dedupeSurfaceActs([...incoming, ...current])).slice(
     0,
     registerActWindowSize,
   )
+}
+
+function attachEntries(acts: SurfaceAct[], entriesByTxHash: Map<string, string>) {
+  return acts.flatMap((act) => {
+    const entryPrefix = entriesByTxHash.get(act.txhash)
+    return entryPrefix ? [{ ...act, entry: `${entryPrefix}.${act.msgIndex}` }] : []
+  })
+}
+
+function retainedTransactionResponses(acts: SurfaceAct[], txs: CosmosTxResponse[]) {
+  const unverifiedHashes = new Set(acts.filter((act) => !act.entry).map((act) => act.txhash))
+  return txs.filter((tx) => unverifiedHashes.has(tx.txhash ?? ''))
+}
+
+function mergeAndNormalizeActs(
+  current: SurfaceAct[],
+  incoming: SurfaceAct[],
+  entriesByTxHash: Map<string, string>,
+) {
+  return normalizeActs(current, attachEntries(incoming, entriesByTxHash))
 }
 
 function normalizeError(error: unknown) {
@@ -83,11 +91,24 @@ export function useSurfaceActs(): UseSurfaceActsState {
       ])
 
       const txResponses = [...instantiateTxs.txResponses, ...executeTxs.txResponses]
-      const entriesByTxHash = await resolveTransactionEntries(txResponses)
-      if (txResponses.length > 0 && entriesByTxHash.size === 0) {
+      const installedModuleAdministrators = moduleAdministratorsFromInstallations(txResponses)
+      const unresolvedModuleAddresses = moduleContractAddresses(txResponses).filter(
+        (address) => !installedModuleAdministrators.has(address),
+      )
+      const queriedModuleAdministrators =
+        await resolveModuleAdministrators(unresolvedModuleAddresses)
+      const moduleAdministrators = new Map([
+        ...installedModuleAdministrators,
+        ...queriedModuleAdministrators,
+      ])
+      const incomingActs = txResponses.flatMap((tx) => mapTxToSurfaceActs(tx, moduleAdministrators))
+      const retainedActs = normalizeActs(acts.value, incomingActs)
+      const retainedTxResponses = retainedTransactionResponses(retainedActs, txResponses)
+      const entriesByTxHash = await resolveTransactionEntries(retainedTxResponses)
+      if (retainedTxResponses.length > 0 && entriesByTxHash.size === 0) {
         throw new Error('Chain register temporarily unavailable.')
       }
-      const currentActs = mergeAndNormalizeActs(acts.value, txResponses, entriesByTxHash)
+      const currentActs = mergeAndNormalizeActs(acts.value, incomingActs, entriesByTxHash)
       acts.value = currentActs
       total.value = (instantiateTxs.total || 0) + (executeTxs.total || 0)
       lastSync.value = new Date()

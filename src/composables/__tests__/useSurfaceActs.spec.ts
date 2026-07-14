@@ -32,12 +32,16 @@ describe('useSurfaceActs', () => {
           return createResponse({ block: { data: { txs: ['YWJj'] } } })
         }
 
+        if (url.includes('/cosmwasm/wasm/v1/contract/')) {
+          return createResponse({ contract_info: { admin: 'axone1account' } })
+        }
+
         if (url.includes('MsgInstantiateContract2')) {
           return createResponse({
             tx_responses: [
               {
                 height: '10',
-                txhash: 'BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD',
+                txhash: 'TX-INSTANTIATE',
                 timestamp: '2026-07-09 12:00 UTC',
                 tx: {
                   body: { messages: [{ '@type': '/cosmwasm.wasm.v1.MsgInstantiateContract2' }] },
@@ -94,9 +98,15 @@ describe('useSurfaceActs', () => {
     await flushPromises()
     await nextTick()
 
-    expect(fetchMock).toHaveBeenCalledTimes(4)
-    for (const [request] of fetchMock.mock.calls.filter(
-      ([request]) => !String(request).includes('/cosmos/base/tendermint/v1beta1/blocks/'),
+    const initialRequestCount = fetchMock.mock.calls.length
+    expect(initialRequestCount).toBeGreaterThanOrEqual(4)
+    expect(
+      fetchMock.mock.calls.filter(([request]) =>
+        String(request).includes('/cosmos/base/tendermint/v1beta1/blocks/'),
+      ),
+    ).toHaveLength(1)
+    for (const [request] of fetchMock.mock.calls.filter(([request]) =>
+      String(request).includes('/cosmos/tx/v1beta1/txs'),
     )) {
       const searchParams = new URL(String(request)).searchParams
       expect(searchParams.get('page')).toBe('1')
@@ -108,7 +118,7 @@ describe('useSurfaceActs', () => {
     await flushPromises()
     await nextTick()
 
-    expect(fetchMock).toHaveBeenCalledTimes(6)
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(initialRequestCount + 2)
   })
 
   it('exposes an error when the chain request fails', async () => {
@@ -129,7 +139,7 @@ describe('useSurfaceActs', () => {
     expect((wrapper.vm as { loading: boolean }).loading).toBe(false)
   })
 
-  it('reports an unavailable register when transactions cannot be verified in their blocks', async () => {
+  it('does not query blocks for transactions that produce no retained fact', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn<(input: RequestInfo | URL) => Promise<Response>>().mockImplementation(async (input) => {
@@ -163,8 +173,6 @@ describe('useSurfaceActs', () => {
     await flushPromises()
     await nextTick()
 
-    expect((wrapper.vm as { error: string | undefined }).error).toBe(
-      'Chain register temporarily unavailable.',
-    )
+    expect((wrapper.vm as { error: string | undefined }).error).toBeUndefined()
   })
 })
