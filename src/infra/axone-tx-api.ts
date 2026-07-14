@@ -1,7 +1,7 @@
 import { type CosmosTxListResponse, type CosmosTxResponse } from './axone-event-extractor'
 
 const AXONE_API_BASE = 'https://api.axone.aknodes.net'
-const DEFAULT_LIMIT = 3
+const DEFAULT_LIMIT = 5
 const MAX_BLOCK_CACHE_ENTRIES = 12
 const blockTransactionsByHeight = new Map<number, Promise<string[]>>()
 

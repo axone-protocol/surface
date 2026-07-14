@@ -15,7 +15,7 @@ const props = defineProps<{
   registerSummary?: string
 }>()
 
-const registerActWindowSize = 3
+const registerActWindowSize = 5
 const visibleActs = ref<SurfaceAct[]>([])
 const pendingActs = ref<SurfaceAct[]>([])
 const typingActId = ref<string | undefined>()
@@ -184,7 +184,7 @@ onBeforeUnmount(() => {
 
     <div v-else-if="loading" class="surface-act-skeleton" role="status">
       <ol class="surface-act-skeleton-list">
-        <li v-for="n in 3" :key="n" class="surface-act-skeleton-item">
+        <li v-for="n in registerActWindowSize" :key="n" class="surface-act-skeleton-item">
           <span
             class="surface-act-skeleton-bar surface-act-skeleton-bar-badge"
             aria-hidden="true"

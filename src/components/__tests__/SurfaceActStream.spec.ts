@@ -26,7 +26,7 @@ function makeAct(id: string, height: number, signer: string) {
 }
 
 describe('SurfaceActStream', () => {
-  it('renders the oldest-to-newest three-record window with assertions and limited proof', async () => {
+  it('renders the oldest-to-newest five-record window with assertions and limited proof', async () => {
     const oldest = makeAct('TX-1', 1, 'axone1oldest')
     const newest = makeAct('TX-2', 2, 'axone1newest')
     const wrapper = mount(SurfaceActStream, {
@@ -72,11 +72,13 @@ describe('SurfaceActStream', () => {
     expect(wrapper.findAll('.surface-act-cursor')).toHaveLength(1)
   })
 
-  it('retains only the three latest records', async () => {
+  it('retains only the five latest records', async () => {
     const acts = [
-      makeAct('TX-4', 4, 'axone1newest'),
-      makeAct('TX-3', 3, 'axone1middle'),
-      makeAct('TX-2', 2, 'axone1older'),
+      makeAct('TX-6', 6, 'axone1newest'),
+      makeAct('TX-5', 5, 'axone1middle'),
+      makeAct('TX-4', 4, 'axone1older'),
+      makeAct('TX-3', 3, 'axone1old'),
+      makeAct('TX-2', 2, 'axone1earlier'),
       makeAct('TX-1', 1, 'axone1oldest'),
     ]
     const wrapper = mount(SurfaceActStream, {
@@ -85,7 +87,7 @@ describe('SurfaceActStream', () => {
 
     await nextTick()
 
-    expect(wrapper.findAll('.surface-act-record')).toHaveLength(3)
+    expect(wrapper.findAll('.surface-act-record')).toHaveLength(5)
     expect(wrapper.text()).not.toContain('axone1oldest')
     expect(wrapper.text()).toContain('axone1older')
     expect(wrapper.text()).toContain('axone1newest')

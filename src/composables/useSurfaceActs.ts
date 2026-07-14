@@ -23,6 +23,7 @@ type UseSurfaceActsState = {
 }
 
 const pollIntervalMs = 15000
+const registerActWindowSize = 5
 
 function mergeAndNormalizeActs(
   current: SurfaceAct[],
@@ -40,7 +41,10 @@ function mergeAndNormalizeActs(
       entry: `${entryPrefix}.${act.msgIndex}`,
     }))
   })
-  return sortSurfaceActs(dedupeSurfaceActs([...incomingActs, ...current])).slice(0, 3)
+  return sortSurfaceActs(dedupeSurfaceActs([...incomingActs, ...current])).slice(
+    0,
+    registerActWindowSize,
+  )
 }
 
 function normalizeError(error: unknown) {
