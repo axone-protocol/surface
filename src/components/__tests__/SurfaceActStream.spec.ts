@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import SurfaceActLine from '../SurfaceActLine.vue'
 import SurfaceActStream from '../SurfaceActStream.vue'
@@ -26,7 +26,11 @@ function makeAct(id: string, height: number, signer: string) {
 }
 
 describe('SurfaceActStream', () => {
-  it('renders the oldest-to-newest five-record window with assertions and limited proof', async () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('renders the oldest-to-newest desktop window with assertions and limited proof', async () => {
     const oldest = makeAct('TX-1', 1, 'axone1oldest')
     const newest = makeAct('TX-2', 2, 'axone1newest')
     const wrapper = mount(SurfaceActStream, {
@@ -73,13 +77,16 @@ describe('SurfaceActStream', () => {
     expect(wrapper.findAll('.surface-act-cursor')).toHaveLength(1)
   })
 
-  it('retains only the five latest records', async () => {
+  it('retains only the eight latest desktop records', async () => {
     const acts = [
-      makeAct('TX-6', 6, 'axone1newest'),
-      makeAct('TX-5', 5, 'axone1middle'),
-      makeAct('TX-4', 4, 'axone1older'),
-      makeAct('TX-3', 3, 'axone1old'),
-      makeAct('TX-2', 2, 'axone1earlier'),
+      makeAct('TX-9', 9, 'axone1newest'),
+      makeAct('TX-8', 8, 'axone1eight'),
+      makeAct('TX-7', 7, 'axone1seven'),
+      makeAct('TX-6', 6, 'axone1six'),
+      makeAct('TX-5', 5, 'axone1five'),
+      makeAct('TX-4', 4, 'axone1four'),
+      makeAct('TX-3', 3, 'axone1three'),
+      makeAct('TX-2', 2, 'axone1two'),
       makeAct('TX-1', 1, 'axone1oldest'),
     ]
     const wrapper = mount(SurfaceActStream, {
@@ -88,9 +95,35 @@ describe('SurfaceActStream', () => {
 
     await nextTick()
 
-    expect(wrapper.findAll('.surface-act-record')).toHaveLength(5)
+    expect(wrapper.findAll('.surface-act-record')).toHaveLength(8)
     expect(wrapper.text()).not.toContain('axone1oldest')
-    expect(wrapper.text()).toContain('axone1older')
+    expect(wrapper.text()).toContain('axone1two')
     expect(wrapper.text()).toContain('axone1newest')
+  })
+
+  it('shows only the five latest records on compact viewports', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({
+        matches: true,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+      }),
+    )
+    const acts = Array.from({ length: 8 }, (_, index) => {
+      const height = 8 - index
+      return makeAct(`TX-${height}`, height, `axone1${height}`)
+    })
+    const wrapper = mount(SurfaceActStream, {
+      props: { acts, loading: false, reducedMotion: true, polling: false },
+    })
+
+    await nextTick()
+    await nextTick()
+
+    expect(wrapper.findAll('.surface-act-record')).toHaveLength(5)
+    expect(wrapper.text()).not.toContain('axone11')
+    expect(wrapper.text()).toContain('axone14')
+    expect(wrapper.text()).toContain('axone18')
   })
 })

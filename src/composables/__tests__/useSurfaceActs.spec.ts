@@ -110,7 +110,7 @@ describe('useSurfaceActs', () => {
     )) {
       const searchParams = new URL(String(request)).searchParams
       expect(searchParams.get('page')).toBe('1')
-      expect(searchParams.get('limit')).toBe('5')
+      expect(searchParams.get('limit')).toBe('8')
       expect(searchParams.get('pagination.limit')).toBeNull()
     }
 

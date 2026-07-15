@@ -7,6 +7,7 @@ import {
   moduleAdministratorsFromInstallations,
   sortSurfaceActs,
 } from '../domain/surface-act-mapper'
+import { desktopRegisterActWindowSize } from '../domain/surface-act-window'
 import {
   fetchExecuteContractTxs,
   fetchInstantiateContract2Txs,
@@ -24,12 +25,10 @@ type UseSurfaceActsState = {
 }
 
 const pollIntervalMs = 15000
-const registerActWindowSize = 5
-
 function normalizeActs(current: SurfaceAct[], incoming: SurfaceAct[]) {
   return sortSurfaceActs(dedupeSurfaceActs([...incoming, ...current])).slice(
     0,
-    registerActWindowSize,
+    desktopRegisterActWindowSize,
   )
 }
 
@@ -82,8 +81,8 @@ export function useSurfaceActs(): UseSurfaceActsState {
 
     try {
       const [instantiateTxs, executeTxs] = await Promise.all([
-        fetchInstantiateContract2Txs(),
-        fetchExecuteContractTxs(),
+        fetchInstantiateContract2Txs(undefined, desktopRegisterActWindowSize),
+        fetchExecuteContractTxs(undefined, desktopRegisterActWindowSize),
       ])
 
       const txResponses = [...instantiateTxs.txResponses, ...executeTxs.txResponses]

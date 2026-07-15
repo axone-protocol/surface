@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import ChainPollingStatus from './ChainPollingStatus.vue'
 import SurfaceActLine from './SurfaceActLine.vue'
 import type { SurfaceAct } from '../domain/surface-act'
+import {
+  compactRegisterActWindowSize,
+  desktopRegisterActWindowSize,
+} from '../domain/surface-act-window'
 
 const props = defineProps<{
   acts: SurfaceAct[]
@@ -13,15 +17,20 @@ const props = defineProps<{
   polling: boolean
 }>()
 
-const registerActWindowSize = 5
 const visibleActs = ref<SurfaceAct[]>([])
 const pendingActs = ref<SurfaceAct[]>([])
 const typingActId = ref<string | undefined>()
 const cursorActId = ref<string | undefined>()
 const knownActIds = new Set<string>()
+const compactViewport = ref(false)
+const registerActWindowSize = computed(() =>
+  compactViewport.value ? compactRegisterActWindowSize : desktopRegisterActWindowSize,
+)
 let drainResolver: (() => void) | undefined
 let draining = false
 let drainGeneration = 0
+let compactViewportQuery: MediaQueryList | undefined
+let compactViewportChangeHandler: ((event: MediaQueryListEvent) => void) | undefined
 
 function stopDrain() {
   drainGeneration += 1
@@ -34,7 +43,7 @@ function stopDrain() {
 }
 
 function currentActs() {
-  return props.acts.slice(0, registerActWindowSize).reverse()
+  return props.acts.slice(0, registerActWindowSize.value).reverse()
 }
 
 function pruneKnownActIds() {
@@ -80,7 +89,7 @@ async function drainVisibleActs() {
     while (generation === drainGeneration && pendingActs.value.length > 0) {
       const next = pendingActs.value[0]!
       pendingActs.value = pendingActs.value.slice(1)
-      visibleActs.value = [...visibleActs.value, next].slice(-registerActWindowSize)
+      visibleActs.value = [...visibleActs.value, next].slice(-registerActWindowSize.value)
 
       if (props.reducedMotion) {
         cursorActId.value = undefined
@@ -139,8 +148,32 @@ watch(
   },
 )
 
+watch(compactViewport, () => {
+  stopDrain()
+  visibleActs.value = []
+  pendingActs.value = []
+  knownActIds.clear()
+  enqueueMissingActs()
+})
+
+onMounted(() => {
+  if (typeof window.matchMedia !== 'function') {
+    return
+  }
+
+  compactViewportQuery = window.matchMedia('(max-width: 760px)')
+  compactViewport.value = compactViewportQuery.matches
+  compactViewportChangeHandler = (event) => {
+    compactViewport.value = event.matches
+  }
+  compactViewportQuery.addEventListener('change', compactViewportChangeHandler)
+})
+
 onBeforeUnmount(() => {
   stopDrain()
+  if (compactViewportChangeHandler) {
+    compactViewportQuery?.removeEventListener('change', compactViewportChangeHandler)
+  }
 })
 </script>
 

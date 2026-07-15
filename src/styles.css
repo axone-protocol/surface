@@ -979,7 +979,7 @@
 
   .surface-act-window {
     position: relative;
-    height: 480px;
+    height: 560px;
     overflow: hidden;
     mask-image: linear-gradient(
       to bottom,
