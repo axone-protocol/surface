@@ -174,6 +174,12 @@
     color: var(--color-surface-text);
   }
 
+  .top-connect.is-pending,
+  .top-connect:disabled {
+    cursor: wait;
+    color: var(--color-surface-dim);
+  }
+
   .network-trigger {
     color: var(--color-surface-gold);
   }
@@ -193,7 +199,8 @@
     animation: network-live 2200ms ease-out infinite;
   }
 
-  .network-menu {
+  .network-menu,
+  .wallet-menu {
     position: absolute;
     top: calc(100% + 12px);
     right: 0;
@@ -207,7 +214,8 @@
     box-shadow: 0 18px 34px rgba(0, 0, 0, 0.34);
   }
 
-  .network-option {
+  .network-option,
+  .wallet-option {
     display: grid;
     gap: 4px;
     width: 100%;
@@ -268,25 +276,54 @@
   }
 
   .network-option:hover:not(:disabled),
-  .network-option:focus-visible:not(:disabled) {
+  .network-option:focus-visible:not(:disabled),
+  .wallet-option:hover:not(:disabled),
+  .wallet-option:focus-visible:not(:disabled) {
     outline: none;
     color: var(--color-surface-gold);
     background: var(--color-surface-gold-soft);
   }
 
-  .top-connect:hover,
-  .top-connect:focus-visible,
+  .top-connect:hover:not(:disabled),
+  .top-connect:focus-visible:not(:disabled),
   .network-trigger:hover,
   .network-trigger:focus-visible {
     color: var(--color-surface-gold);
     outline: none;
   }
 
-  .top-connect:focus-visible,
+  .top-connect:focus-visible:not(:disabled),
   .network-trigger:focus-visible {
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 5px;
+  }
+
+  .wallet-menu {
+    gap: 4px;
+  }
+
+  .wallet-menu-metadata,
+  .wallet-menu-status,
+  .wallet-menu-error {
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 0.76rem;
+    line-height: 1.45;
+  }
+
+  .wallet-menu-metadata {
+    color: var(--color-surface-code);
+    font-family: var(--font-mono);
+  }
+
+  .wallet-menu-status {
+    color: var(--color-surface-dim);
+  }
+
+  .wallet-menu-error {
+    color: var(--color-surface-gold);
+    border-top: 1px solid var(--color-surface-line);
   }
 
   .surface-gestures span {
@@ -700,7 +737,8 @@
       display: none;
     }
 
-    .network-menu {
+    .network-menu,
+    .wallet-menu {
       right: auto;
       left: 0;
       width: min(220px, calc(100vw - 24px));

@@ -4,6 +4,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import HeroCanvas from './components/HeroCanvas.vue'
 import SurfaceActStream from './components/SurfaceActStream.vue'
 import { useSurfaceActs } from './composables/useSurfaceActs'
+import { useWalletConnection } from './composables/useWalletConnection'
+import type { WalletProviderId } from './domain/wallet-connection'
 import { networks, type Network } from './networks'
 import { surfaceLaws } from './surfaceLaws'
 
@@ -20,6 +22,8 @@ const activeLawId = ref(defaultLaw.id)
 const activeActorIndex = ref(0)
 const selectedNetworkKey = ref<Network['key']>('testnet')
 const networkMenuOpen = ref(false)
+const walletMenuOpen = ref(false)
+const connectingProvider = ref<WalletProviderId | null>(null)
 const surfaceActionsEl = ref<HTMLElement | null>(null)
 const { acts, loading, error, polling } = useSurfaceActs()
 
@@ -38,6 +42,22 @@ const activeActorLine = computed(() => actorLines[activeActorIndex.value] ?? act
 const selectedNetwork = computed(
   () => networks.find((network) => network.key === selectedNetworkKey.value) ?? networks[0]!,
 )
+const {
+  status: walletConnectionStatus,
+  connection: walletConnection,
+  errorMessage: walletErrorMessage,
+  availableProviders: availableWalletProviders,
+  connect: connectWalletClient,
+  disconnect: disconnectWalletClient,
+} = useWalletConnection(selectedNetwork)
+const walletTriggerLabel = computed(() => {
+  if (walletConnectionStatus.value === 'connecting') {
+    return 'Connecting…'
+  }
+
+  const address = walletConnection.value?.address
+  return address ? `${address.slice(0, 10)}…${address.slice(-6)}` : 'Connect identity'
+})
 
 function updateReducedMotion(event?: MediaQueryListEvent) {
   prefersReducedMotion.value = event?.matches ?? motionQuery?.matches ?? false
@@ -55,10 +75,32 @@ function selectNetwork(networkKey: Network['key']) {
 
 function toggleNetworkMenu() {
   networkMenuOpen.value = !networkMenuOpen.value
+  walletMenuOpen.value = false
 }
 
-function closeNetworkMenu() {
+function toggleWalletMenu() {
+  walletMenuOpen.value = !walletMenuOpen.value
   networkMenuOpen.value = false
+}
+
+function closeMenus() {
+  networkMenuOpen.value = false
+  walletMenuOpen.value = false
+}
+
+async function connectWallet(provider: WalletProviderId) {
+  connectingProvider.value = provider
+  await connectWalletClient(provider)
+  connectingProvider.value = null
+}
+
+function disconnectWallet() {
+  disconnectWalletClient()
+  closeMenus()
+}
+
+function walletProviderName(provider: WalletProviderId) {
+  return provider === 'keplr' ? 'Keplr' : 'Leap'
 }
 
 function rotateActorLine() {
@@ -97,13 +139,18 @@ onMounted(() => {
   documentClickHandler = (event) => {
     const target = event.target as Node | null
     const root = surfaceActionsEl.value
-    if (networkMenuOpen.value && root && target && !root.contains(target)) {
-      closeNetworkMenu()
+    if (
+      (networkMenuOpen.value || walletMenuOpen.value) &&
+      root &&
+      target &&
+      !root.contains(target)
+    ) {
+      closeMenus()
     }
   }
   documentKeydownHandler = (event) => {
     if (event.key === 'Escape') {
-      closeNetworkMenu()
+      closeMenus()
     }
   }
   document.addEventListener('click', documentClickHandler)
@@ -139,7 +186,84 @@ onBeforeUnmount(() => {
       <nav class="surface-bar" aria-label="Surface heading">
         <p class="surface-mark">AXONE / SURFACE</p>
         <div ref="surfaceActionsEl" class="surface-actions" aria-label="Surface actions">
-          <button class="top-connect" type="button">Connect identity</button>
+          <button
+            class="top-connect"
+            :class="{ 'is-pending': walletConnectionStatus === 'connecting' }"
+            type="button"
+            aria-haspopup="menu"
+            :aria-expanded="walletMenuOpen"
+            aria-controls="wallet-menu"
+            :disabled="walletConnectionStatus === 'connecting'"
+            @click="toggleWalletMenu"
+          >
+            {{ walletTriggerLabel }}
+          </button>
+          <div
+            v-if="walletMenuOpen"
+            id="wallet-menu"
+            class="network-menu wallet-menu"
+            role="menu"
+            aria-label="Wallet connection"
+          >
+            <p
+              v-if="walletConnectionStatus === 'connecting'"
+              class="wallet-menu-status"
+              role="status"
+              aria-live="polite"
+            >
+              Connecting to
+              {{ connectingProvider ? walletProviderName(connectingProvider) : 'wallet' }}…
+            </p>
+            <template v-else-if="walletConnection">
+              <p class="wallet-menu-metadata">
+                {{ walletProviderName(walletConnection.provider) }} ·
+                {{ selectedNetwork.displayName }}
+              </p>
+              <button
+                class="network-option wallet-option"
+                type="button"
+                role="menuitem"
+                @click="disconnectWallet"
+              >
+                Disconnect identity
+              </button>
+            </template>
+            <template v-else>
+              <button
+                class="network-option wallet-option"
+                :class="{ 'is-disabled': !availableWalletProviders.includes('keplr') }"
+                type="button"
+                role="menuitem"
+                :aria-disabled="!availableWalletProviders.includes('keplr')"
+                :disabled="!availableWalletProviders.includes('keplr')"
+                @click="connectWallet('keplr')"
+              >
+                {{ availableWalletProviders.includes('keplr') ? 'Keplr' : 'Keplr unavailable' }}
+              </button>
+              <button
+                class="network-option wallet-option"
+                :class="{ 'is-disabled': !availableWalletProviders.includes('leap') }"
+                type="button"
+                role="menuitem"
+                :aria-disabled="!availableWalletProviders.includes('leap')"
+                :disabled="!availableWalletProviders.includes('leap')"
+                @click="connectWallet('leap')"
+              >
+                {{ availableWalletProviders.includes('leap') ? 'Leap' : 'Leap unavailable' }}
+              </button>
+              <p
+                v-if="availableWalletProviders.length === 0"
+                class="wallet-menu-status"
+                role="status"
+                aria-live="polite"
+              >
+                Install Keplr or Leap to connect an Axone identity.
+              </p>
+            </template>
+            <p v-if="walletErrorMessage" class="wallet-menu-error" role="alert">
+              {{ walletErrorMessage }}
+            </p>
+          </div>
           <span class="surface-actions-divider" aria-hidden="true">|</span>
           <button
             class="network-trigger"

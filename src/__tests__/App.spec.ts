@@ -1,6 +1,17 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
+import type { WalletConnectionClient } from '../domain/wallet-connection'
+
+const walletClient = vi.hoisted(() => ({
+  availableProviders: vi.fn<WalletConnectionClient['availableProviders']>(),
+  connect: vi.fn<WalletConnectionClient['connect']>(),
+  watchAccount: vi.fn<WalletConnectionClient['watchAccount']>(),
+}))
+
+vi.mock('../infra/browser-wallet-connection-client', () => ({
+  browserWalletConnectionClient: walletClient,
+}))
 
 import App from '../App.vue'
 
@@ -8,6 +19,8 @@ function createCanvasContextMock() {
   return {
     setTransform: vi.fn<() => void>(),
     fillRect: vi.fn<() => void>(),
+    clearRect: vi.fn<() => void>(),
+    rect: vi.fn<() => void>(),
     save: vi.fn<() => void>(),
     restore: vi.fn<() => void>(),
     beginPath: vi.fn<() => void>(),
@@ -44,7 +57,47 @@ function createResponse(body: unknown, ok = true, status = 200): Response {
   } as unknown as Response
 }
 
+function installSuccessfulBrowserMocks() {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: createMatchMediaMock(true),
+  })
+  Object.defineProperty(window, 'fetch', {
+    writable: true,
+    value: vi.fn<() => Promise<Response>>().mockResolvedValue(createResponse(createEmptyTxList())),
+  })
+  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+    writable: true,
+    value: vi
+      .fn<() => CanvasRenderingContext2D | null>()
+      .mockReturnValue(createCanvasContextMock()),
+  })
+}
+
+const mountedApps = new Set<{ unmount: () => void }>()
+
+function mountApp() {
+  const wrapper = mount(App)
+  mountedApps.add(wrapper)
+  return wrapper
+}
+
 describe('App', () => {
+  beforeEach(() => {
+    walletClient.availableProviders.mockReset()
+    walletClient.availableProviders.mockReturnValue([])
+    walletClient.connect.mockReset()
+    walletClient.watchAccount.mockReset()
+    walletClient.watchAccount.mockReturnValue(vi.fn())
+  })
+
+  afterEach(() => {
+    for (const wrapper of mountedApps) {
+      wrapper.unmount()
+    }
+    mountedApps.clear()
+  })
+
   it('renders the live act homepage shell', async () => {
     const matchMedia = createMatchMediaMock(true)
 
@@ -67,7 +120,7 @@ describe('App', () => {
         .mockReturnValue(createCanvasContextMock()),
     })
 
-    const wrapper = mount(App)
+    const wrapper = mountApp()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
@@ -106,11 +159,45 @@ describe('App', () => {
         .mockReturnValue(createCanvasContextMock()),
     })
 
-    const wrapper = mount(App)
+    const wrapper = mountApp()
     await flushPromises()
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).not.toContain('RECORDS')
     expect(wrapper.text()).not.toContain('LAST SYNC')
+  })
+  it('connects a chosen wallet and disconnects the local identity', async () => {
+    installSuccessfulBrowserMocks()
+    walletClient.availableProviders.mockReturnValue(['keplr'])
+    const address = 'axone1abcdefghijklmnop'
+    walletClient.connect.mockResolvedValue({ address })
+
+    const wrapper = mountApp()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('.top-connect').trigger('click')
+    await wrapper.get('#wallet-menu button').trigger('click')
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.get('.top-connect').text()).toBe(`${address.slice(0, 10)}…${address.slice(-6)}`)
+    expect(wrapper.text()).toContain('Keplr · axone-testnet')
+
+    await wrapper.get('#wallet-menu button').trigger('click')
+    expect(wrapper.get('.top-connect').text()).toBe('Connect identity')
+  })
+
+  it('shows unavailable wallet options when no extension is installed', async () => {
+    installSuccessfulBrowserMocks()
+    const wrapper = mountApp()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('.top-connect').trigger('click')
+
+    expect(wrapper.text()).toContain('Keplr unavailable')
+    expect(wrapper.text()).toContain('Leap unavailable')
+    expect(wrapper.text()).toContain('Install Keplr or Leap to connect an Axone identity.')
   })
 })
