@@ -23,6 +23,7 @@
         "check": "run-s lint test:unit build"
     },
     "dependencies": {
+        "bech32": "^2.0.0",
         "pixi.js": "^8.19.0",
         "vue": "^3.5.38"
     },

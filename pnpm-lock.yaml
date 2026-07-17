@@ -7,6 +7,9 @@ settings:
 importers:
   .:
     dependencies:
+      bech32:
+        specifier: ^2.0.0
+        version: 2.0.0
       pixi.js:
         specifier: ^8.19.0
         version: 8.19.0
@@ -1619,6 +1622,12 @@ packages:
       }
     engines: { node: '>=6.0.0' }
     hasBin: true
+
+  bech32@2.0.0:
+    resolution:
+      {
+        integrity: sha512-LcknSilhIGatDAsY1ak2I8VtGaHNhgMSYVxFrGLXv+xLHytaKZKcaUJJUE7qmBr7h33o5YQwP55pMI0xmkpJwg==,
+      }
 
   bidi-js@1.0.3:
     resolution:
@@ -4438,6 +4447,8 @@ snapshots:
   balanced-match@4.0.4: {}
 
   baseline-browser-mapping@2.10.42: {}
+
+  bech32@2.0.0: {}
 
   bidi-js@1.0.3:
     dependencies:
