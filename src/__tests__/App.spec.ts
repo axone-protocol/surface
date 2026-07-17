@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import type { WalletConnectionClient } from '../domain/wallet-connection'
+import type { AbstractAccountClient } from '../domain/abstract-account'
 
 const walletClient = vi.hoisted(() => ({
   availableProviders: vi.fn<WalletConnectionClient['availableProviders']>(),
@@ -9,8 +10,15 @@ const walletClient = vi.hoisted(() => ({
   watchAccount: vi.fn<WalletConnectionClient['watchAccount']>(),
 }))
 
+const abstractAccountClient = vi.hoisted(() => ({
+  discover: vi.fn<AbstractAccountClient['discover']>(),
+}))
+
 vi.mock('../infra/browser-wallet-connection-client', () => ({
   browserWalletConnectionClient: walletClient,
+}))
+vi.mock('../infra/abstract-account-client', () => ({
+  browserAbstractAccountClient: abstractAccountClient,
 }))
 
 import App from '../App.vue'
@@ -89,6 +97,7 @@ describe('App', () => {
     walletClient.connect.mockReset()
     walletClient.watchAccount.mockReset()
     walletClient.watchAccount.mockReturnValue(vi.fn())
+    abstractAccountClient.discover.mockReset()
   })
 
   afterEach(() => {
@@ -126,7 +135,7 @@ describe('App', () => {
 
     expect(wrapper.text()).toContain('AXONE / SURFACE')
     expect(wrapper.text()).toContain('GOVERN ACT')
-    expect(wrapper.text()).toContain('Connect identity')
+    expect(wrapper.text()).toContain('Connect')
     expect(wrapper.text()).toContain('axone-testnet')
     expect(wrapper.text()).toContain('CHAIN REGISTER')
     expect(wrapper.text()).toContain('Enter the surface')
@@ -166,26 +175,83 @@ describe('App', () => {
     expect(wrapper.text()).not.toContain('RECORDS')
     expect(wrapper.text()).not.toContain('LAST SYNC')
   })
-  it('connects a chosen wallet and disconnects the local identity', async () => {
+  it('switches between discovered identities without rendering the wallet address', async () => {
     installSuccessfulBrowserMocks()
     walletClient.availableProviders.mockReturnValue(['keplr'])
-    const address = 'axone1abcdefghijklmnop'
-    walletClient.connect.mockResolvedValue({ address })
+    const walletAddress = 'axone1walletprivateaddress'
+    walletClient.connect.mockResolvedValue({ address: walletAddress })
+    abstractAccountClient.discover.mockResolvedValue([
+      {
+        address: 'axone1abstractfirst',
+        did: 'did:pkh:cosmos:axone-dendrite-2:cosmos1abstractfirst',
+        label: 'Anonymous',
+      },
+      {
+        address: 'axone1abstractsecond',
+        did: 'did:pkh:cosmos:axone-dendrite-2:cosmos1abstractsecond',
+        label: 'Anonymous',
+      },
+    ])
 
     const wrapper = mountApp()
     await flushPromises()
-    await wrapper.vm.$nextTick()
-
     await wrapper.get('.top-connect').trigger('click')
     await wrapper.get('#wallet-menu button').trigger('click')
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.get('.top-connect').text()).toBe(`${address.slice(0, 10)}…${address.slice(-6)}`)
-    expect(wrapper.text()).toContain('Keplr · axone-testnet')
+    expect(wrapper.get('.top-connect').text()).toContain('Anonymous')
+    expect(wrapper.text()).not.toContain(walletAddress)
 
+    await wrapper.get('.top-connect').trigger('click')
+    expect(wrapper.get('.identity-current-row').text()).toContain('Anonymous')
+    expect(wrapper.text()).toContain('Other identities')
+    expect(wrapper.text()).not.toContain('Current identity')
+    expect(wrapper.get('.identity-current-row .identity-did').attributes('title')).toBe(
+      'did:pkh:cosmos:axone-dendrite-2:cosmos1abstractfirst',
+    )
+    await wrapper.get('.identity-choice').trigger('click')
+    expect(wrapper.get('.top-connect').text()).toContain('Anonymous')
+    await wrapper.get('.top-connect').trigger('click')
+    expect(wrapper.get('.identity-current-row .identity-did').attributes('title')).toBe(
+      'did:pkh:cosmos:axone-dendrite-2:cosmos1abstractsecond',
+    )
+  })
+
+  it('renders the verified empty identity state as noninteractive informational text', async () => {
+    installSuccessfulBrowserMocks()
+    walletClient.availableProviders.mockReturnValue(['keplr'])
+    walletClient.connect.mockResolvedValue({ address: 'axone1wallet' })
+    abstractAccountClient.discover.mockResolvedValue([])
+    const wrapper = mountApp()
+    await flushPromises()
+    await wrapper.get('.top-connect').trigger('click')
     await wrapper.get('#wallet-menu button').trigger('click')
-    expect(wrapper.get('.top-connect').text()).toBe('Connect identity')
+    await flushPromises()
+
+    expect(wrapper.get('.top-connect').text()).toContain('No identity')
+    await wrapper.get('.top-connect').trigger('click')
+    expect(wrapper.text()).toContain('This wallet does not control any identity.')
+    expect(wrapper.text()).toContain('Create identity…')
+    expect(wrapper.text()).toContain('Import existing identity…')
+    expect(wrapper.findAll('.identity-management-affordance')).toHaveLength(2)
+  })
+
+  it('renders discovery failure as unavailable rather than no identity', async () => {
+    installSuccessfulBrowserMocks()
+    walletClient.availableProviders.mockReturnValue(['keplr'])
+    walletClient.connect.mockResolvedValue({ address: 'axone1wallet' })
+    abstractAccountClient.discover.mockRejectedValue(new Error('Registry unavailable'))
+    const wrapper = mountApp()
+    await flushPromises()
+    await wrapper.get('.top-connect').trigger('click')
+    await wrapper.get('#wallet-menu button').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('.top-connect').text()).toContain('Identity unavailable')
+    await wrapper.get('.top-connect').trigger('click')
+    expect(wrapper.text()).toContain('Registry unavailable')
+    expect(wrapper.text()).not.toContain('This wallet does not control any identity.')
   })
 
   it('shows unavailable wallet options when no extension is installed', async () => {
