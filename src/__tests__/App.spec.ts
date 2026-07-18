@@ -355,7 +355,7 @@ describe('App', () => {
     expect(wrapper.text()).not.toContain('This wallet does not control any identity.')
   })
 
-  it('shows unavailable wallet options when no extension is installed', async () => {
+  it('renders unavailable wallet options when no extension is installed', async () => {
     installSuccessfulBrowserMocks()
     const wrapper = mountApp()
     await flushPromises()
@@ -363,8 +363,31 @@ describe('App', () => {
 
     await wrapper.get('.top-connect').trigger('click')
 
-    expect(wrapper.text()).toContain('Keplr unavailable')
-    expect(wrapper.text()).toContain('Leap unavailable')
+    expect(wrapper.get('.wallet-register-head').text()).toBe('WALLETS')
+    const walletRegisterList = wrapper.get('.wallet-register-list')
+    const walletRows = walletRegisterList.findAll('.wallet-option')
+    expect(walletRows).toHaveLength(2)
+    expect(walletRows[0]!.get('.wallet-option-name').text()).toBe('Keplr')
+    expect(walletRows[0]!.get('.wallet-option-status').text()).toBe('unavailable')
+    expect(walletRows[1]!.get('.wallet-option-name').text()).toBe('Leap')
+    expect(walletRows[1]!.get('.wallet-option-status').text()).toBe('unavailable')
     expect(wrapper.text()).toContain('Install Keplr or Leap to connect an Axone identity.')
+  })
+
+  it('renders wallet provider availability without connecting', async () => {
+    installSuccessfulBrowserMocks()
+    walletClient.availableProviders.mockReturnValue(['keplr'])
+    const wrapper = mountApp()
+    await flushPromises()
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('.top-connect').trigger('click')
+
+    const walletRows = wrapper.get('.wallet-register-list').findAll('.wallet-option')
+    expect(walletRows[0]!.get('.wallet-option-name').text()).toBe('Keplr')
+    expect(walletRows[0]!.get('.wallet-option-status').text()).toBe('available')
+    expect(walletRows[1]!.get('.wallet-option-name').text()).toBe('Leap')
+    expect(walletRows[1]!.get('.wallet-option-status').text()).toBe('unavailable')
+    expect(walletClient.connect).not.toHaveBeenCalled()
   })
 })

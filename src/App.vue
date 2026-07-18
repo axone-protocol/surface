@@ -281,28 +281,37 @@ onBeforeUnmount(() => {
             aria-label="Identity connection"
           >
             <template v-if="!walletConnection">
-              <button
-                class="network-option wallet-option"
-                :class="{ 'is-disabled': !availableWalletProviders.includes('keplr') }"
-                type="button"
-                role="menuitem"
-                :aria-disabled="!availableWalletProviders.includes('keplr')"
-                :disabled="!availableWalletProviders.includes('keplr')"
-                @click="connectWallet('keplr')"
-              >
-                {{ availableWalletProviders.includes('keplr') ? 'Keplr' : 'Keplr unavailable' }}
-              </button>
-              <button
-                class="network-option wallet-option"
-                :class="{ 'is-disabled': !availableWalletProviders.includes('leap') }"
-                type="button"
-                role="menuitem"
-                :aria-disabled="!availableWalletProviders.includes('leap')"
-                :disabled="!availableWalletProviders.includes('leap')"
-                @click="connectWallet('leap')"
-              >
-                {{ availableWalletProviders.includes('leap') ? 'Leap' : 'Leap unavailable' }}
-              </button>
+              <div class="wallet-register-head">WALLETS</div>
+              <div class="wallet-register-list">
+                <button
+                  class="network-option wallet-option"
+                  :class="{ 'is-disabled': !availableWalletProviders.includes('keplr') }"
+                  type="button"
+                  role="menuitem"
+                  :aria-disabled="!availableWalletProviders.includes('keplr')"
+                  :disabled="!availableWalletProviders.includes('keplr')"
+                  @click="connectWallet('keplr')"
+                >
+                  <span class="wallet-option-name">Keplr</span>
+                  <span class="wallet-option-status">
+                    {{ availableWalletProviders.includes('keplr') ? 'available' : 'unavailable' }}
+                  </span>
+                </button>
+                <button
+                  class="network-option wallet-option"
+                  :class="{ 'is-disabled': !availableWalletProviders.includes('leap') }"
+                  type="button"
+                  role="menuitem"
+                  :aria-disabled="!availableWalletProviders.includes('leap')"
+                  :disabled="!availableWalletProviders.includes('leap')"
+                  @click="connectWallet('leap')"
+                >
+                  <span class="wallet-option-name">Leap</span>
+                  <span class="wallet-option-status">
+                    {{ availableWalletProviders.includes('leap') ? 'available' : 'unavailable' }}
+                  </span>
+                </button>
+              </div>
               <p
                 v-if="availableWalletProviders.length === 0"
                 class="wallet-menu-status"
