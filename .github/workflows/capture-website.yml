@@ -44,6 +44,9 @@ jobs:
         run: |
           # --no-sandbox is required because Ubuntu 24.04+ runners disable unprivileged
           # user namespaces via AppArmor, making the Chromium sandbox unavailable in CI.
+          # --disable-dev-shm-usage prevents renderer crashes caused by the default
+          # 64 MB /dev/shm limit on GitHub Actions runners, which would otherwise cause
+          # a silent hang and a navigation timeout.
           capture-website \
             --type webp \
             --quality=0.7 \
@@ -52,7 +55,7 @@ jobs:
             --delay=15 \
             --timeout=120 \
             --throw-on-http-error \
-            --launch-options='{"headless":"new","args":["--no-sandbox"]}' \
+            --launch-options='{"headless":true,"args":["--no-sandbox","--disable-dev-shm-usage"]}' \
             --output surface.webp \
             --overwrite \
             https://surface.axone.xyz/
