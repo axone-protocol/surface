@@ -42,6 +42,8 @@ jobs:
 
       - name: Capture website
         run: |
+          # --no-sandbox is required because Ubuntu 24.04+ runners disable unprivileged
+          # user namespaces via AppArmor, making the Chromium sandbox unavailable in CI.
           capture-website \
             --type webp \
             --quality=0.7 \
@@ -50,7 +52,7 @@ jobs:
             --delay=15 \
             --timeout=120 \
             --throw-on-http-error \
-            --launch-options='{"headless":"new"}' \
+            --launch-options='{"headless":"new","args":["--no-sandbox"]}' \
             --output surface.webp \
             --overwrite \
             https://surface.xyz/
