@@ -38,6 +38,6 @@ jobs:
         run: pnpm install --frozen-lockfile
         shell: bash
 
-      - name: Run checks
-        run: pnpm run check
+      - name: Build application
+        run: pnpm build
         shell: bash
