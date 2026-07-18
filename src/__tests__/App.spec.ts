@@ -182,8 +182,7 @@ describe('App', () => {
     walletClient.connect.mockResolvedValue({ address: walletAddress })
     const firstDid =
       'did:pkh:cosmos:axone-dendrite-2:cosmos1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqpk2un3'
-    const secondDid =
-      'did:pkh:cosmos:axone-dendrite-2:cosmos1a0u12345678901234567890pk2un3'
+    const secondDid = 'did:pkh:cosmos:axone-dendrite-2:cosmos1a0u12345678901234567890pk2un3'
     abstractAccountClient.discover.mockResolvedValue([
       {
         address: 'axone1abstractfirst',

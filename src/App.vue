@@ -127,7 +127,6 @@ async function copyIdentityDid(did: string) {
   identityAnnouncement.value = 'Full identity DID copied.'
 }
 
-
 function rotateActorLine() {
   activeActorIndex.value = (activeActorIndex.value + 1) % actorLines.length
 }

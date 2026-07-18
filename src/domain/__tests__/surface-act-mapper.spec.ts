@@ -9,8 +9,7 @@ import {
 } from '../surface-act-mapper'
 import { surfaceActKindCategories } from '../surface-act'
 
-const abstractAccountAddress =
-  'axone1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqhg7gd5'
+const abstractAccountAddress = 'axone1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqhg7gd5'
 const compactAbstractAccountDid = 'did:pkh:…cosmos1lfc…pk2un3'
 const dendriteChainId = 'axone-dendrite-2'
 const credentialIssuerDid =
@@ -234,36 +233,42 @@ describe('surface-act-mapper', () => {
 
   it('rejects unrelated contract instantiation and module events without an AA owner', () => {
     expect(
-      mapTxToSurfaceActs({
-        tx: { body: { messages: [{ '@type': '/cosmwasm.wasm.v1.MsgInstantiateContract2' }] } },
-        events: [
-          {
-            type: 'instantiate',
-            attributes: [{ key: '_contract_address', value: 'axone1unrelated' }],
-          },
-        ],
-      }, dendriteChainId),
+      mapTxToSurfaceActs(
+        {
+          tx: { body: { messages: [{ '@type': '/cosmwasm.wasm.v1.MsgInstantiateContract2' }] } },
+          events: [
+            {
+              type: 'instantiate',
+              attributes: [{ key: '_contract_address', value: 'axone1unrelated' }],
+            },
+          ],
+        },
+        dendriteChainId,
+      ),
     ).toEqual([])
 
     expect(
-      mapTxToSurfaceActs({
-        tx: {
-          body: {
-            messages: [{ '@type': '/cosmwasm.wasm.v1.MsgExecuteContract' }],
+      mapTxToSurfaceActs(
+        {
+          tx: {
+            body: {
+              messages: [{ '@type': '/cosmwasm.wasm.v1.MsgExecuteContract' }],
+            },
           },
+          events: [
+            {
+              type: 'wasm-abstract',
+              attributes: [
+                { key: 'contract', value: 'axone:axone-gov' },
+                { key: 'action', value: 'record_decision' },
+                { key: '_contract_address', value: 'axone1govmodule' },
+                { key: 'msg_index', value: '0' },
+              ],
+            },
+          ],
         },
-        events: [
-          {
-            type: 'wasm-abstract',
-            attributes: [
-              { key: 'contract', value: 'axone:axone-gov' },
-              { key: 'action', value: 'record_decision' },
-              { key: '_contract_address', value: 'axone1govmodule' },
-              { key: 'msg_index', value: '0' },
-            ],
-          },
-        ],
-      }, dendriteChainId),
+        dendriteChainId,
+      ),
     ).toEqual([])
 
     expect(
@@ -294,7 +299,6 @@ describe('surface-act-mapper', () => {
       ),
     ).toEqual([])
   })
-
 
   it('derives module owners from installation transactions before querying contracts', () => {
     const installation = {

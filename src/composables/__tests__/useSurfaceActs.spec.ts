@@ -12,8 +12,7 @@ function createResponse(body: unknown, ok = true, status = 200): Response {
   } as unknown as Response
 }
 
-const abstractAccountAddress =
-  'axone1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqhg7gd5'
+const abstractAccountAddress = 'axone1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqhg7gd5'
 
 describe('useSurfaceActs', () => {
   beforeEach(() => {

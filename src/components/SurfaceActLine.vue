@@ -17,21 +17,18 @@ const emit = defineEmits<{
 const typedLength = ref(0)
 let typingTimer: number | undefined
 
-
 const assertionIdentifierPattern = /(did:pkh:…cosmos1[a-z0-9]+…[a-z0-9]{6}|urn:[a-z0-9:-]+)/i
 const technicalIdentifierPattern = /^(did:pkh:…cosmos1[a-z0-9]+…[a-z0-9]{6}|urn:[a-z0-9:-]+)$/i
 
 const typedAssertionParts = computed(() => {
   let remainingLength = typedLength.value
 
-  return props.act.assertion
-    .split(assertionIdentifierPattern)
-    .flatMap((value) => {
-      const text = value.slice(0, remainingLength)
-      remainingLength -= value.length
+  return props.act.assertion.split(assertionIdentifierPattern).flatMap((value) => {
+    const text = value.slice(0, remainingLength)
+    remainingLength -= value.length
 
-      return text ? [{ text, technical: technicalIdentifierPattern.test(value) }] : []
-    })
+    return text ? [{ text, technical: technicalIdentifierPattern.test(value) }] : []
+  })
 })
 const entryParts = computed(() => {
   const entry = props.act.entry ?? '—'

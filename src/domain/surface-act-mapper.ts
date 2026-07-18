@@ -181,7 +181,12 @@ function fromInstantiate(
   const contractAddress = eventAttribute(abstractAccountEvent, '_contract_address')
   const subject = abstractAccountSubject(contractAddress, chainId)
 
-  if (messageType(message) !== instantiateAction || !instantiateEvent || !contractAddress || !subject) {
+  if (
+    messageType(message) !== instantiateAction ||
+    !instantiateEvent ||
+    !contractAddress ||
+    !subject
+  ) {
     return []
   }
 
@@ -273,7 +278,6 @@ function mapWasmAbstractEvent(
       return []
     }
 
-
     const verdict = attributes.verdict ?? ''
     return [
       {
@@ -310,7 +314,6 @@ function mapWasmAbstractEvent(
     if (!subject) {
       return []
     }
-
 
     return [
       {
@@ -375,7 +378,6 @@ function mapWasmAbstractEvent(
     if (!subject) {
       return []
     }
-
 
     return [
       {
