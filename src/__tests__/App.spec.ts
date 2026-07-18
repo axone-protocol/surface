@@ -92,6 +92,7 @@ function mountApp() {
 
 describe('App', () => {
   beforeEach(() => {
+    localStorage.clear()
     walletClient.availableProviders.mockReset()
     walletClient.availableProviders.mockReturnValue([])
     walletClient.connect.mockReset()
@@ -105,6 +106,7 @@ describe('App', () => {
       wrapper.unmount()
     }
     mountedApps.clear()
+    localStorage.clear()
   })
 
   it('renders the live act homepage shell', async () => {
@@ -223,6 +225,36 @@ describe('App', () => {
       'did:pkh:…cosmos1a0u…pk2un3',
     )
     expect(wrapper.get('.identity-current-row .identity-did').attributes('title')).toBe(secondDid)
+  })
+  it('restores the discovered identity after remounting with the remembered wallet', async () => {
+    installSuccessfulBrowserMocks()
+    walletClient.availableProviders.mockReturnValue(['keplr'])
+    walletClient.connect.mockResolvedValue({ address: 'axone1wallet' })
+    abstractAccountClient.discover.mockResolvedValue([
+      {
+        address: 'axone1abstract',
+        did: 'did:pkh:cosmos:axone-dendrite-2:cosmos1identity',
+        label: 'Anonymous',
+      },
+    ])
+
+    const firstWrapper = mountApp()
+    await flushPromises()
+    await firstWrapper.get('.top-connect').trigger('click')
+    await firstWrapper.get('#wallet-menu button').trigger('click')
+    await flushPromises()
+    expect(firstWrapper.get('.top-connect').text()).toContain('Anonymous')
+    expect(localStorage.getItem('axone.surface.wallet-provider')).toBe('keplr')
+
+    firstWrapper.unmount()
+    mountedApps.delete(firstWrapper)
+
+    const secondWrapper = mountApp()
+    await flushPromises()
+    await secondWrapper.vm.$nextTick()
+
+    expect(walletClient.connect).toHaveBeenCalledTimes(2)
+    expect(secondWrapper.get('.top-connect').text()).toContain('Anonymous')
   })
 
   it('renders the verified empty identity state as noninteractive informational text', async () => {

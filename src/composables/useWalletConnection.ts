@@ -8,6 +8,45 @@ import type {
 import { browserWalletConnectionClient } from '../infra/browser-wallet-connection-client'
 import type { Network } from '../networks'
 
+const walletProviderStorageKey = 'axone.surface.wallet-provider'
+
+function isWalletProviderId(value: string | null): value is WalletProviderId {
+  return value === 'keplr' || value === 'leap'
+}
+
+function readRememberedProvider(): WalletProviderId | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  try {
+    const value = window.localStorage.getItem(walletProviderStorageKey)
+    if (isWalletProviderId(value)) {
+      return value
+    }
+
+    if (value !== null) {
+      window.localStorage.removeItem(walletProviderStorageKey)
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+function rememberProvider(provider: WalletProviderId) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(walletProviderStorageKey, provider)
+  } catch {
+    // Persistence is optional; runtime wallet state remains authoritative.
+  }
+}
+
 export type WalletConnectionStatus = 'idle' | 'connecting' | 'connected' | 'error'
 
 export type ConnectedWallet = WalletAccount & {
@@ -88,11 +127,16 @@ export function useWalletConnection(
         () => disconnectWithError(unavailableMessage),
       )
       status.value = 'connected'
+      rememberProvider(provider)
     } catch {
       disconnectWithError(
         `Could not connect to ${providerName(provider)}. Unlock the wallet, enable the selected Axone network, and try again.`,
       )
     }
+  }
+  const rememberedProvider = readRememberedProvider()
+  if (rememberedProvider && availableProviders.value.includes(rememberedProvider)) {
+    void connect(rememberedProvider)
   }
 
   watch(

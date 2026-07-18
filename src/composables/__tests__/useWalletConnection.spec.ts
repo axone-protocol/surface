@@ -1,20 +1,28 @@
 import { defineComponent, nextTick, ref } from 'vue'
 import { mount } from '@vue/test-utils'
-import { describe, expect, it, vi, type Mock } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 import { useWalletConnection, type UseWalletConnectionState } from '../useWalletConnection'
-import type { WalletAccount, WalletConnectionClient } from '../../domain/wallet-connection'
+import type {
+  WalletAccount,
+  WalletConnectionClient,
+  WalletProviderId,
+} from '../../domain/wallet-connection'
 import { networks } from '../../networks'
 
 type FakeWalletClient = {
   client: WalletConnectionClient
   connect: Mock<WalletConnectionClient['connect']>
+  watchAccount: Mock<WalletConnectionClient['watchAccount']>
   cleanup: Mock<() => void>
   onAccount: (account: WalletAccount) => void
   onError: () => void
 }
 
-function createClient(account: WalletAccount = { address: 'axone1initial' }): FakeWalletClient {
+function createClient(
+  account: WalletAccount = { address: 'axone1initial' },
+  providers: WalletProviderId[] = ['keplr', 'leap'],
+): FakeWalletClient {
   const connect = vi.fn<WalletConnectionClient['connect']>().mockResolvedValue(account)
   const cleanup = vi.fn<() => void>()
   let onAccount: (account: WalletAccount) => void = () => undefined
@@ -29,11 +37,12 @@ function createClient(account: WalletAccount = { address: 'axone1initial' }): Fa
 
   return {
     client: {
-      availableProviders: () => ['keplr', 'leap'],
+      availableProviders: () => providers,
       connect,
       watchAccount,
     },
     connect,
+    watchAccount,
     cleanup,
     onAccount: (account) => onAccount(account),
     onError: () => onError(),
@@ -60,6 +69,14 @@ function mountConnection(client: WalletConnectionClient) {
   return { wrapper, network, state: walletState }
 }
 
+beforeEach(() => {
+  localStorage.clear()
+})
+
+afterEach(() => {
+  localStorage.clear()
+})
+
 describe('useWalletConnection', () => {
   it('stores the selected provider, address, and chain ID then cleans up locally', async () => {
     const fake = createClient({ address: 'axone1connected' })
@@ -74,6 +91,7 @@ describe('useWalletConnection', () => {
       chainId: 'axone-dendrite-2',
     })
     expect(fake.connect).toHaveBeenCalledWith('keplr', 'axone-dendrite-2')
+    expect(localStorage.getItem('axone.surface.wallet-provider')).toBe('keplr')
 
     state.disconnect()
     expect(fake.cleanup).toHaveBeenCalledOnce()
@@ -145,5 +163,56 @@ describe('useWalletConnection', () => {
     expect(fake.cleanup).toHaveBeenCalledOnce()
     expect(state.connection.value).toBeNull()
     expect(state.status.value).toBe('idle')
+  })
+
+  it('automatically reconnects a remembered installed provider', async () => {
+    localStorage.setItem('axone.surface.wallet-provider', 'keplr')
+    const fake = createClient({ address: 'axone1restored' })
+    const { state } = mountConnection(fake.client)
+
+    await nextTick()
+
+    expect(fake.connect).toHaveBeenCalledWith('keplr', 'axone-dendrite-2')
+    expect(state.status.value).toBe('connected')
+    expect(state.connection.value?.address).toBe('axone1restored')
+  })
+
+  it('does not connect when the remembered provider is not installed', async () => {
+    localStorage.setItem('axone.surface.wallet-provider', 'leap')
+    const fake = createClient({ address: 'axone1neverused' }, ['keplr'])
+    const { state } = mountConnection(fake.client)
+
+    await nextTick()
+
+    expect(fake.connect).not.toHaveBeenCalled()
+    expect(state.status.value).toBe('idle')
+    expect(localStorage.getItem('axone.surface.wallet-provider')).toBe('leap')
+  })
+
+  it('removes an invalid remembered provider without connecting', async () => {
+    localStorage.setItem('axone.surface.wallet-provider', 'unsafe-value')
+    const fake = createClient()
+    const { state } = mountConnection(fake.client)
+
+    await nextTick()
+
+    expect(fake.connect).not.toHaveBeenCalled()
+    expect(state.status.value).toBe('idle')
+    expect(localStorage.getItem('axone.surface.wallet-provider')).toBeNull()
+  })
+
+  it('leaves no account or listener after auto-reconnect fails', async () => {
+    localStorage.setItem('axone.surface.wallet-provider', 'keplr')
+    const fake = createClient()
+    fake.connect.mockRejectedValue(new Error('locked'))
+    const { state } = mountConnection(fake.client)
+
+    await nextTick()
+    await nextTick()
+
+    expect(state.connection.value).toBeNull()
+    expect(state.status.value).toBe('error')
+    expect(fake.watchAccount).not.toHaveBeenCalled()
+    expect(fake.cleanup).not.toHaveBeenCalled()
   })
 })
