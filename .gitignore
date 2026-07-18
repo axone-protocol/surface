@@ -45,3 +45,6 @@ playwright-report/
 # Nix
 .direnv/
 result
+
+# Capture website
+engine.bin
