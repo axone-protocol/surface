@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import HeroCanvas from './components/HeroCanvas.vue'
 import SurfaceActStream from './components/SurfaceActStream.vue'
@@ -58,13 +58,46 @@ const {
   selectIdentity,
 } = useAbstractAccountIdentities({ connection: walletConnection }, selectedNetwork)
 const identityAnnouncement = ref('')
-const identityTriggerLabel = computed(() => {
-  if (
-    walletConnectionStatus.value === 'connecting' ||
-    identityDiscoveryStatus.value === 'loading'
-  ) {
-    return 'Discovering identities…'
+type IdentityDiscoveryPhase = 'idle' | 'pending' | 'reveal'
+const identityDiscoveryPhase = ref<IdentityDiscoveryPhase>('idle')
+const revealedIdentityCount = ref<number | null>(null)
+let identityRevealTimer: number | undefined
+function clearIdentityRevealTimer() {
+  if (identityRevealTimer !== undefined) {
+    window.clearTimeout(identityRevealTimer)
+    identityRevealTimer = undefined
   }
+}
+watch(
+  [walletConnectionStatus, identityDiscoveryStatus],
+  ([connectionStatus, discoveryStatus]) => {
+    clearIdentityRevealTimer()
+    if (connectionStatus === 'connecting' || discoveryStatus === 'loading') {
+      identityDiscoveryPhase.value = 'pending'
+      revealedIdentityCount.value = null
+      return
+    }
+    if (
+      connectionStatus === 'connected' &&
+      discoveryStatus === 'ready' &&
+      walletConnection.value &&
+      identityDiscoveryPhase.value !== 'reveal'
+    ) {
+      revealedIdentityCount.value = identities.value.length
+      identityDiscoveryPhase.value = 'reveal'
+      identityRevealTimer = window.setTimeout(() => {
+        identityDiscoveryPhase.value = 'idle'
+        revealedIdentityCount.value = null
+        identityRevealTimer = undefined
+      }, 900)
+      return
+    }
+    identityDiscoveryPhase.value = 'idle'
+    revealedIdentityCount.value = null
+  },
+  { immediate: true },
+)
+const identityTriggerLabel = computed(() => {
   if (!walletConnection.value) {
     return 'Connect'
   }
@@ -76,10 +109,7 @@ const identityTriggerLabel = computed(() => {
   }
   return activeIdentity.value.label
 })
-const identityTriggerDisabled = computed(
-  () =>
-    walletConnectionStatus.value === 'connecting' || identityDiscoveryStatus.value === 'loading',
-)
+const identityTriggerDisabled = computed(() => identityDiscoveryPhase.value === 'pending')
 
 function updateReducedMotion(event?: MediaQueryListEvent) {
   prefersReducedMotion.value = event?.matches ?? motionQuery?.matches ?? false
@@ -184,6 +214,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.clearInterval(actorTimer)
+  clearIdentityRevealTimer()
   window.clearInterval(lawTimer)
   if (motionChangeHandler) {
     motionQuery?.removeEventListener('change', motionChangeHandler)
@@ -220,7 +251,25 @@ onBeforeUnmount(() => {
             :disabled="identityTriggerDisabled"
             @click="toggleWalletMenu"
           >
-            <span>{{ identityTriggerLabel }}</span>
+            <Transition name="identity-label" mode="out-in">
+              <span
+                v-if="identityDiscoveryPhase === 'pending'"
+                key="pending"
+                class="identity-status-label"
+              >
+                <span class="identity-resolution-dot is-pending" aria-hidden="true" />
+                Resolving identities
+              </span>
+              <span
+                v-else-if="identityDiscoveryPhase === 'reveal'"
+                key="reveal"
+                class="identity-status-label"
+              >
+                <span class="identity-resolution-dot is-revealed" aria-hidden="true" />
+                {{ revealedIdentityCount }} identities found
+              </span>
+              <span v-else :key="identityTriggerLabel">{{ identityTriggerLabel }}</span>
+            </Transition>
             <span v-if="walletConnection" class="menu-chevron" aria-hidden="true">▾</span>
           </button>
           <p class="sr-only" role="status" aria-live="polite">{{ identityAnnouncement }}</p>

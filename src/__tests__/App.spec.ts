@@ -2,7 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import type { WalletConnectionClient } from '../domain/wallet-connection'
-import type { AbstractAccountClient } from '../domain/abstract-account'
+import type { AbstractAccountClient, AbstractAccountIdentity } from '../domain/abstract-account'
 
 const walletClient = vi.hoisted(() => ({
   availableProviders: vi.fn<WalletConnectionClient['availableProviders']>(),
@@ -88,6 +88,11 @@ function mountApp() {
   const wrapper = mount(App)
   mountedApps.add(wrapper)
   return wrapper
+}
+
+async function waitForIdentityReveal() {
+  await new Promise((resolve) => window.setTimeout(resolve, 900))
+  await flushPromises()
 }
 
 describe('App', () => {
@@ -204,6 +209,7 @@ describe('App', () => {
     await wrapper.get('#wallet-menu button').trigger('click')
     await flushPromises()
     await wrapper.vm.$nextTick()
+    await waitForIdentityReveal()
 
     expect(wrapper.get('.top-connect').text()).toContain('Anonymous')
     expect(wrapper.text()).not.toContain(walletAddress)
@@ -226,6 +232,58 @@ describe('App', () => {
     )
     expect(wrapper.get('.identity-current-row .identity-did').attributes('title')).toBe(secondDid)
   })
+
+  it('reveals the discovered identity count before returning to the active identity label', async () => {
+    vi.useFakeTimers()
+    try {
+      installSuccessfulBrowserMocks()
+      walletClient.availableProviders.mockReturnValue(['keplr'])
+      walletClient.connect.mockResolvedValue({ address: 'axone1wallet' })
+      let resolveDiscovery!: (value: AbstractAccountIdentity[]) => void
+      abstractAccountClient.discover.mockReturnValue(
+        new Promise<AbstractAccountIdentity[]>((resolve) => {
+          resolveDiscovery = resolve
+        }),
+      )
+
+      const wrapper = mountApp()
+      await flushPromises()
+      await wrapper.get('.top-connect').trigger('click')
+      await wrapper.get('#wallet-menu button').trigger('click')
+      await flushPromises()
+
+      expect(wrapper.get('.top-connect').text()).toContain('Resolving identities')
+      expect(wrapper.find('.identity-status-label').exists()).toBe(true)
+      expect(wrapper.find('.identity-resolution-dot.is-pending').exists()).toBe(true)
+      expect(wrapper.get('.top-connect').text()).not.toContain('identities found')
+
+      resolveDiscovery([
+        {
+          address: 'axone1abstractfirst',
+          did: 'did:pkh:cosmos:axone-dendrite-2:cosmos1identityone',
+          label: 'Anonymous',
+        },
+        {
+          address: 'axone1abstractsecond',
+          did: 'did:pkh:cosmos:axone-dendrite-2:cosmos1identitytwo',
+          label: 'Anonymous',
+        },
+      ])
+      await flushPromises()
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.get('.top-connect').text()).toContain('2 identities found')
+      expect(wrapper.find('.identity-resolution-dot.is-revealed').exists()).toBe(true)
+
+      await vi.advanceTimersByTimeAsync(900)
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.get('.top-connect').text()).toContain('Anonymous')
+      expect(wrapper.find('.identity-resolution-dot').exists()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
   it('restores the discovered identity after remounting with the remembered wallet', async () => {
     installSuccessfulBrowserMocks()
     walletClient.availableProviders.mockReturnValue(['keplr'])
@@ -242,6 +300,7 @@ describe('App', () => {
     await flushPromises()
     await firstWrapper.get('.top-connect').trigger('click')
     await firstWrapper.get('#wallet-menu button').trigger('click')
+    await waitForIdentityReveal()
     await flushPromises()
     expect(firstWrapper.get('.top-connect').text()).toContain('Anonymous')
     expect(localStorage.getItem('axone.surface.wallet-provider')).toBe('keplr')
@@ -252,6 +311,7 @@ describe('App', () => {
     const secondWrapper = mountApp()
     await flushPromises()
     await secondWrapper.vm.$nextTick()
+    await waitForIdentityReveal()
 
     expect(walletClient.connect).toHaveBeenCalledTimes(2)
     expect(secondWrapper.get('.top-connect').text()).toContain('Anonymous')
@@ -267,6 +327,8 @@ describe('App', () => {
     await wrapper.get('.top-connect').trigger('click')
     await wrapper.get('#wallet-menu button').trigger('click')
     await flushPromises()
+    expect(wrapper.get('.top-connect').text()).toContain('0 identities found')
+    await waitForIdentityReveal()
 
     expect(wrapper.get('.top-connect').text()).toContain('No identity')
     await wrapper.get('.top-connect').trigger('click')
