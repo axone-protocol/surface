@@ -17,7 +17,22 @@ const emit = defineEmits<{
 const typedLength = ref(0)
 let typingTimer: number | undefined
 
-const typedAssertion = computed(() => props.act.assertion.slice(0, typedLength.value))
+
+const assertionIdentifierPattern = /(did:pkh:…cosmos1[a-z0-9]+…[a-z0-9]{6}|urn:[a-z0-9:-]+)/i
+const technicalIdentifierPattern = /^(did:pkh:…cosmos1[a-z0-9]+…[a-z0-9]{6}|urn:[a-z0-9:-]+)$/i
+
+const typedAssertionParts = computed(() => {
+  let remainingLength = typedLength.value
+
+  return props.act.assertion
+    .split(assertionIdentifierPattern)
+    .flatMap((value) => {
+      const text = value.slice(0, remainingLength)
+      remainingLength -= value.length
+
+      return text ? [{ text, technical: technicalIdentifierPattern.test(value) }] : []
+    })
+})
 const entryParts = computed(() => {
   const entry = props.act.entry ?? '—'
   const match = entry.match(/^(.*)(\.\d+\.\d+)$/)
@@ -97,8 +112,11 @@ onBeforeUnmount(() => {
     <div class="surface-act-assertion">
       <p class="surface-act-category">{{ surfaceActKindCategories[act.kind] }}</p>
       <p class="surface-act-inscription" :aria-label="act.assertion">
-        {{ typedAssertion
-        }}<span v-if="cursorVisible" class="surface-act-cursor" aria-hidden="true" />
+        <template v-for="(part, index) in typedAssertionParts" :key="index">
+          <span v-if="part.technical" class="surface-act-identifier">{{ part.text }}</span>
+          <template v-else>{{ part.text }}</template>
+        </template>
+        <span v-if="cursorVisible" class="surface-act-cursor" aria-hidden="true" />
       </p>
     </div>
 

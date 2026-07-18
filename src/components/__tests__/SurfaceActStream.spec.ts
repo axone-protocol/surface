@@ -56,6 +56,28 @@ describe('SurfaceActStream', () => {
     expect(wrapper.find('.surface-act-cursor').exists()).toBe(false)
   })
 
+  it('renders embedded DID and URN identifiers in monospace spans', async () => {
+    const assertion =
+      'Credential issued by did:pkh:…cosmos1s7u…texh8c to urn:axone:testnet:subject:gh29632273325a1-1.'
+    const wrapper = mount(SurfaceActLine, {
+      props: {
+        act: { ...makeAct('TX-DID', 1, 'axone1issuer'), assertion },
+        reducedMotion: true,
+        typingActive: false,
+        cursorVisible: false,
+      },
+    })
+
+    await nextTick()
+
+    const identifiers = wrapper.findAll('.surface-act-identifier')
+    expect(identifiers.map((identifier) => identifier.text())).toEqual([
+      'did:pkh:…cosmos1s7u…texh8c',
+      'urn:axone:testnet:subject:gh29632273325a1-1',
+    ])
+    expect(wrapper.get('.surface-act-inscription').text()).toBe(assertion)
+  })
+
   it('reveals exactly one record assertion at a time', async () => {
     const oldest = makeAct('TX-1', 1, 'axone1oldest')
     const newest = makeAct('TX-2', 2, 'axone1newest')
