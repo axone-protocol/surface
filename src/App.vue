@@ -6,6 +6,7 @@ import SurfaceActStream from './components/SurfaceActStream.vue'
 import { useSurfaceActs } from './composables/useSurfaceActs'
 import { useAbstractAccountIdentities } from './composables/useAbstractAccountIdentities'
 import { useWalletConnection } from './composables/useWalletConnection'
+import { compactCanonicalDid } from './domain/abstract-account'
 import type { WalletProviderId } from './domain/wallet-connection'
 import { networks, type Network } from './networks'
 import { surfaceLaws } from './surfaceLaws'
@@ -126,24 +127,6 @@ async function copyIdentityDid(did: string) {
   identityAnnouncement.value = 'Full identity DID copied.'
 }
 
-function compactIdentityDid(did: string) {
-  const address = did.slice(did.lastIndexOf(':') + 1)
-  let suffixLength = 6
-
-  while (
-    identities.value.some(
-      (identity) =>
-        identity.did !== did &&
-        identity.did
-          .slice(identity.did.lastIndexOf(':') + 1)
-          .endsWith(address.slice(-suffixLength)),
-    )
-  ) {
-    suffixLength += 1
-  }
-
-  return `did:pkh:…${address.slice(-suffixLength)}`
-}
 
 function rotateActorLine() {
   activeActorIndex.value = (activeActorIndex.value + 1) % actorLines.length
@@ -318,7 +301,7 @@ onBeforeUnmount(() => {
                     class="identity-did"
                     :title="activeIdentity.did"
                     :aria-label="`Full identity DID: ${activeIdentity.did}`"
-                    >{{ compactIdentityDid(activeIdentity.did) }}</span
+                    >{{ compactCanonicalDid(activeIdentity.did) }}</span
                   >
                   <button
                     class="identity-copy"
@@ -349,7 +332,7 @@ onBeforeUnmount(() => {
                     class="identity-did"
                     :title="identity.did"
                     :aria-label="`Full identity DID: ${identity.did}`"
-                    >{{ compactIdentityDid(identity.did) }}</span
+                    >{{ compactCanonicalDid(identity.did) }}</span
                   >
                 </button>
               </template>

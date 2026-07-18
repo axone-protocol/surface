@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { toCanonicalDid } from '../abstract-account'
+import { compactCanonicalDid, toCanonicalDid } from '../abstract-account'
 
 const axoneAddress = 'axone1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqhg7gd5'
 
@@ -9,6 +9,14 @@ describe('toCanonicalDid', () => {
     expect(toCanonicalDid(axoneAddress, 'axone-dendrite-2')).toBe(
       'did:pkh:cosmos:axone-dendrite-2:cosmos1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqpk2un3',
     )
+  })
+
+  it('formats a canonical DID with a stable compact Cosmos address', () => {
+    expect(
+      compactCanonicalDid(
+        'did:pkh:cosmos:axone-dendrite-2:cosmos1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqpk2un3',
+      ),
+    ).toBe('did:pkh:…cosmos1lfc…pk2un3')
   })
 
   it('rejects malformed bech32 addresses', () => {

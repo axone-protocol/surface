@@ -9,6 +9,17 @@ import {
 } from '../surface-act-mapper'
 import { surfaceActKindCategories } from '../surface-act'
 
+const abstractAccountAddress =
+  'axone1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqhg7gd5'
+const compactAbstractAccountDid = 'did:pkh:…cosmos1lfc…pk2un3'
+const dendriteChainId = 'axone-dendrite-2'
+const credentialIssuerDid =
+  'did:pkh:cosmos:axone-dendrite-2:cosmos1s7uksna4686k27cg6gneqltxx4yjsscs3p7ztvvned6j2thjjthstexh8c'
+const compactCredentialIssuerDid = 'did:pkh:…cosmos1s7u…texh8c'
+const credentialSubjectDid =
+  'did:pkh:cosmos:axone-dendrite-2:cosmos1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqpk2un3'
+const compactCredentialSubjectDid = 'did:pkh:…cosmos1lfc…pk2un3'
+
 describe('surface-act-mapper', () => {
   it('maps on-chain sources to the specified assertions', () => {
     const instantiateTx = {
@@ -30,7 +41,7 @@ describe('surface-act-mapper', () => {
         {
           type: 'instantiate',
           attributes: [
-            { key: '_contract_address', value: 'axone1contract' },
+            { key: '_contract_address', value: abstractAccountAddress },
             { key: 'msg_index', value: '0' },
           ],
         },
@@ -39,7 +50,7 @@ describe('surface-act-mapper', () => {
           attributes: [
             { key: 'contract', value: 'abstract:account' },
             { key: 'action', value: 'instantiate' },
-            { key: '_contract_address', value: 'axone1contract' },
+            { key: '_contract_address', value: abstractAccountAddress },
             { key: 'msg_index', value: '0' },
           ],
         },
@@ -74,14 +85,14 @@ describe('surface-act-mapper', () => {
     })
 
     const administrators = new Map([
-      ['axone1govmodule', 'axone1account'],
-      ['axone1vcmodule', 'axone1account'],
+      ['axone1govmodule', abstractAccountAddress],
+      ['axone1vcmodule', abstractAccountAddress],
     ])
     const cases = [
       {
         tx: instantiateTx,
         kind: 'identity.created',
-        assertion: 'Identity created for axone1contract.',
+        assertion: `Identity created for ${compactAbstractAccountDid}.`,
       },
       {
         tx: {
@@ -90,7 +101,7 @@ describe('surface-act-mapper', () => {
             { key: 'action', value: 'install_modules' },
             { key: 'installed_modules', value: '["axone:axone-gov:1.0.0"]' },
             { key: 'msg_index', value: '0' },
-            { key: '_contract_address', value: 'axone1account' },
+            { key: '_contract_address', value: abstractAccountAddress },
           ]),
           events: [
             {
@@ -100,7 +111,7 @@ describe('surface-act-mapper', () => {
                 { key: 'action', value: 'install_modules' },
                 { key: 'installed_modules', value: '["axone:axone-gov:1.0.0"]' },
                 { key: 'msg_index', value: '0' },
-                { key: '_contract_address', value: 'axone1account' },
+                { key: '_contract_address', value: abstractAccountAddress },
               ],
             },
             {
@@ -115,7 +126,7 @@ describe('surface-act-mapper', () => {
           ],
         },
         kind: 'governance.instantiated',
-        assertion: 'Governance established on axone1account.',
+        assertion: `Governance established on ${compactAbstractAccountDid}.`,
       },
       {
         tx: makeExecuteTx('TX-VC-INSTALL', [
@@ -123,10 +134,10 @@ describe('surface-act-mapper', () => {
           { key: 'action', value: 'install_modules' },
           { key: 'installed_modules', value: '["axone:axone-vc:0.1.0"]' },
           { key: 'msg_index', value: '0' },
-          { key: '_contract_address', value: 'axone1account' },
+          { key: '_contract_address', value: abstractAccountAddress },
         ]),
         kind: 'credential.authority.instantiated',
-        assertion: 'Credential authority established on axone1account.',
+        assertion: `Credential authority established on ${compactAbstractAccountDid}.`,
       },
       {
         tx: makeExecuteTx('TX-REC', [
@@ -138,7 +149,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1govmodule' },
         ]),
         kind: 'governance.decision.recorded',
-        assertion: 'Decision recorded by axone1account.',
+        assertion: `Decision recorded by ${compactAbstractAccountDid}.`,
       },
       {
         tx: makeExecuteTx('TX-REV', [
@@ -150,7 +161,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1govmodule' },
         ]),
         kind: 'governance.constitution.revised',
-        assertion: 'Governance amended on axone1account.',
+        assertion: `Governance amended on ${compactAbstractAccountDid}.`,
       },
       {
         tx: makeExecuteTx(
@@ -170,7 +181,7 @@ describe('surface-act-mapper', () => {
               module: {
                 issue_credential: {
                   credential: btoa(
-                    '<urn:credential> <https://www.w3.org/2018/credentials#issuer> <did:pkh:cosmos:issuer> .\n<urn:credential> <https://www.w3.org/2018/credentials#credentialSubject> <urn:axone:subject> .',
+                    `<urn:credential> <https://www.w3.org/2018/credentials#issuer> <${credentialIssuerDid}> .\n<urn:credential> <https://www.w3.org/2018/credentials#credentialSubject> <urn:axone:testnet:subject:gh29632273325a1-1> .`,
                   ),
                 },
               },
@@ -178,7 +189,19 @@ describe('surface-act-mapper', () => {
           },
         ),
         kind: 'credential.issued',
-        assertion: 'Credential issued by did:pkh:cosmos:issuer to urn:axone:subject.',
+        assertion: `Credential issued by ${compactCredentialIssuerDid} to urn:axone:testnet:subject:gh29632273325a1-1.`,
+      },
+      {
+        tx: makeExecuteTx('TX-ISS-DID', [
+          { key: 'contract', value: 'axone:axone-vc' },
+          { key: 'action', value: 'issue_credential' },
+          { key: 'issuer', value: credentialIssuerDid },
+          { key: 'subject', value: credentialSubjectDid },
+          { key: 'msg_index', value: '0' },
+          { key: '_contract_address', value: 'axone1vcmodule' },
+        ]),
+        kind: 'credential.issued',
+        assertion: `Credential issued by ${compactCredentialIssuerDid} to ${compactCredentialSubjectDid}.`,
       },
       {
         tx: makeExecuteTx('TX-REVK', [
@@ -190,19 +213,19 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1vcmodule' },
         ]),
         kind: 'credential.revoked',
-        assertion: 'Credential revoked by axone1account.',
+        assertion: `Credential revoked by ${compactAbstractAccountDid}.`,
       },
     ] as const
 
     for (const testCase of cases) {
-      const acts = mapTxToSurfaceActs(testCase.tx as never, administrators)
+      const acts = mapTxToSurfaceActs(testCase.tx as never, dendriteChainId, administrators)
 
       expect(acts).toHaveLength(1)
       expect(acts[0]?.kind).toBe(testCase.kind)
       expect(acts[0]?.assertion).toBe(testCase.assertion)
     }
 
-    const verdict = mapTxToSurfaceActs(cases[3].tx as never, administrators)[0]!
+    const verdict = mapTxToSurfaceActs(cases[3].tx as never, dendriteChainId, administrators)[0]!
     expect(surfaceActKindCategories[verdict.kind]).toBe('VERDICT')
     expect(verdict.payload.verdict).toBe('gov:permitted')
     expect(verdict.assertion).not.toContain('record_decision')
@@ -219,7 +242,7 @@ describe('surface-act-mapper', () => {
             attributes: [{ key: '_contract_address', value: 'axone1unrelated' }],
           },
         ],
-      }),
+      }, dendriteChainId),
     ).toEqual([])
 
     expect(
@@ -240,9 +263,38 @@ describe('surface-act-mapper', () => {
             ],
           },
         ],
-      }),
+      }, dendriteChainId),
+    ).toEqual([])
+
+    expect(
+      mapTxToSurfaceActs(
+        {
+          tx: {
+            body: {
+              messages: [{ '@type': '/cosmwasm.wasm.v1.MsgInstantiateContract2' }],
+            },
+          },
+          events: [
+            {
+              type: 'instantiate',
+              attributes: [{ key: '_contract_address', value: 'not-an-address' }],
+            },
+            {
+              type: 'wasm-abstract',
+              attributes: [
+                { key: 'contract', value: 'abstract:account' },
+                { key: 'action', value: 'instantiate' },
+                { key: '_contract_address', value: 'not-an-address' },
+                { key: 'msg_index', value: '0' },
+              ],
+            },
+          ],
+        },
+        dendriteChainId,
+      ),
     ).toEqual([])
   })
+
 
   it('derives module owners from installation transactions before querying contracts', () => {
     const installation = {

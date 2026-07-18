@@ -22,3 +22,9 @@ export function toCanonicalDid(address: string, chainId: string): string {
 
   return `did:pkh:cosmos:${chainId}:${cosmosAddress}`
 }
+
+export function compactCanonicalDid(did: string): string {
+  const cosmosAddress = did.slice(did.lastIndexOf(':') + 1)
+
+  return `did:pkh:…${cosmosAddress.slice(0, 10)}…${cosmosAddress.slice(-6)}`
+}

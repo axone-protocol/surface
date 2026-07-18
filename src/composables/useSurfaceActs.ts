@@ -96,7 +96,9 @@ export function useSurfaceActs(): UseSurfaceActsState {
         ...installedModuleAdministrators,
         ...queriedModuleAdministrators,
       ])
-      const incomingActs = txResponses.flatMap((tx) => mapTxToSurfaceActs(tx, moduleAdministrators))
+      const incomingActs = txResponses.flatMap((tx) =>
+        mapTxToSurfaceActs(tx, 'axone-dendrite-2', moduleAdministrators),
+      )
       const retainedActs = normalizeActs(acts.value, incomingActs)
       const retainedTxResponses = retainedTransactionResponses(retainedActs, txResponses)
       const entriesByTxHash = await resolveTransactionEntries(retainedTxResponses)

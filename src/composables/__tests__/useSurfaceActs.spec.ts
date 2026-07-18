@@ -12,6 +12,9 @@ function createResponse(body: unknown, ok = true, status = 200): Response {
   } as unknown as Response
 }
 
+const abstractAccountAddress =
+  'axone1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqhg7gd5'
+
 describe('useSurfaceActs', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -33,7 +36,7 @@ describe('useSurfaceActs', () => {
         }
 
         if (url.includes('/cosmwasm/wasm/v1/contract/')) {
-          return createResponse({ contract_info: { admin: 'axone1account' } })
+          return createResponse({ contract_info: { admin: abstractAccountAddress } })
         }
 
         if (url.includes('MsgInstantiateContract2')) {

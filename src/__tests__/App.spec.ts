@@ -180,15 +180,19 @@ describe('App', () => {
     walletClient.availableProviders.mockReturnValue(['keplr'])
     const walletAddress = 'axone1walletprivateaddress'
     walletClient.connect.mockResolvedValue({ address: walletAddress })
+    const firstDid =
+      'did:pkh:cosmos:axone-dendrite-2:cosmos1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqpk2un3'
+    const secondDid =
+      'did:pkh:cosmos:axone-dendrite-2:cosmos1a0u12345678901234567890pk2un3'
     abstractAccountClient.discover.mockResolvedValue([
       {
         address: 'axone1abstractfirst',
-        did: 'did:pkh:cosmos:axone-dendrite-2:cosmos1abstractfirst',
+        did: firstDid,
         label: 'Anonymous',
       },
       {
         address: 'axone1abstractsecond',
-        did: 'did:pkh:cosmos:axone-dendrite-2:cosmos1abstractsecond',
+        did: secondDid,
         label: 'Anonymous',
       },
     ])
@@ -207,15 +211,19 @@ describe('App', () => {
     expect(wrapper.get('.identity-current-row').text()).toContain('Anonymous')
     expect(wrapper.text()).toContain('Other identities')
     expect(wrapper.text()).not.toContain('Current identity')
-    expect(wrapper.get('.identity-current-row .identity-did').attributes('title')).toBe(
-      'did:pkh:cosmos:axone-dendrite-2:cosmos1abstractfirst',
-    )
+    const currentDid = wrapper.get('.identity-current-row .identity-did')
+    const alternateDid = wrapper.get('.identity-choice .identity-did')
+    expect(currentDid.text()).toBe('did:pkh:…cosmos1lfc…pk2un3')
+    expect(alternateDid.text()).toBe('did:pkh:…cosmos1a0u…pk2un3')
+    expect(currentDid.attributes('title')).toBe(firstDid)
+    expect(alternateDid.attributes('title')).toBe(secondDid)
     await wrapper.get('.identity-choice').trigger('click')
     expect(wrapper.get('.top-connect').text()).toContain('Anonymous')
     await wrapper.get('.top-connect').trigger('click')
-    expect(wrapper.get('.identity-current-row .identity-did').attributes('title')).toBe(
-      'did:pkh:cosmos:axone-dendrite-2:cosmos1abstractsecond',
+    expect(wrapper.get('.identity-current-row .identity-did').text()).toBe(
+      'did:pkh:…cosmos1a0u…pk2un3',
     )
+    expect(wrapper.get('.identity-current-row .identity-did').attributes('title')).toBe(secondDid)
   })
 
   it('renders the verified empty identity state as noninteractive informational text', async () => {
