@@ -55,7 +55,7 @@ jobs:
             --launch-options='{"headless":"new","args":["--no-sandbox"]}' \
             --output surface.webp \
             --overwrite \
-            https://surface.xyz/
+            https://surface.axone.xyz/
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v7
