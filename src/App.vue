@@ -393,8 +393,6 @@ onBeforeUnmount(() => {
                   >
                 </button>
               </template>
-              <div class="identity-menu-separator" aria-hidden="true" />
-              <p class="identity-management-affordance">Manage identities…</p>
             </template>
           </div>
           <span class="surface-actions-divider" aria-hidden="true">|</span>
