@@ -44,7 +44,7 @@ jobs:
           pnpm exec playwright install --with-deps chromium
 
       - name: Capture website
-        run: pnpm exec node scripts/capture-website.mjs
+        run: pnpm run capture:website
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v7
