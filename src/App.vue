@@ -472,6 +472,7 @@ onBeforeUnmount(() => {
         :acts="acts"
         :loading="loading"
         :error="error"
+        :explorer="selectedNetwork.explorer"
         :reduced-motion="prefersReducedMotion"
         :polling="polling"
       />

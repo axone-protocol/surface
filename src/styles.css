@@ -1351,15 +1351,37 @@
   }
 
   .surface-act-tx {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     max-width: 100%;
     min-width: 0;
   }
 
   .surface-act-tx-value {
+    position: relative;
+    flex: 0 1 auto;
     min-width: 0;
     overflow-wrap: anywhere;
+    color: inherit;
+    text-decoration: underline dotted currentColor;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  .surface-act-tx-value::after {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    left: 0;
+    z-index: 1;
+    height: 30px;
+    content: '';
+    transform: translateY(-50%);
+  }
+
+  .surface-act-tx-value:focus-visible {
+    outline: 1px dotted currentColor;
+    outline-offset: 3px;
   }
 
   .surface-act-tx-action {
@@ -1367,12 +1389,13 @@
     flex: 0 0 14px;
     width: 14px;
     height: 14px;
-    margin-left: 15px;
+    margin-left: 23px;
   }
 
   .surface-act-tx-copy {
     position: absolute;
     inset: -15px;
+    z-index: 2;
     display: grid;
     width: 44px;
     height: 44px;

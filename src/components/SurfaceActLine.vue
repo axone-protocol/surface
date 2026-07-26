@@ -8,6 +8,7 @@ const props = defineProps<{
   reducedMotion: boolean
   typingActive: boolean
   cursorVisible: boolean
+  explorer: string
 }>()
 
 const emit = defineEmits<{
@@ -38,6 +39,7 @@ const entryParts = computed(() => {
   const match = entry.match(/^(.*)(\.\d+\.\d+)$/)
   return match ? { prefix: match[1], suffix: match[2] } : { prefix: entry, suffix: '' }
 })
+const transactionExplorerUrl = computed(() => `${props.explorer}/tx/${props.act.txhash}`)
 
 function shortValue(value: string) {
   if (value.length <= 24) {
@@ -158,7 +160,15 @@ onBeforeUnmount(() => {
       <div class="surface-act-proof-row surface-act-tx-row">
         <dt>tx</dt>
         <dd class="surface-act-tx">
-          <span class="surface-act-tx-value" :title="act.txhash">{{ shortValue(act.txhash) }}</span>
+          <a
+            class="surface-act-tx-value"
+            :href="transactionExplorerUrl"
+            :title="act.txhash"
+            :aria-label="`View transaction ${act.txhash} in explorer`"
+            target="_blank"
+            rel="noopener noreferrer"
+            >{{ shortValue(act.txhash) }}</a
+          >
           <span class="surface-act-tx-action">
             <button
               v-if="transactionCopyState !== 'copied'"

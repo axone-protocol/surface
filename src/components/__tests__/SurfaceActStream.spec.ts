@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import SurfaceActLine from '../SurfaceActLine.vue'
 import SurfaceActStream from '../SurfaceActStream.vue'
 
+const testExplorer = 'https://explorer.aknodes.com/AXONE-TESTNET'
+
 function makeAct(id: string, height: number, signer: string) {
   return {
     id: `${id}:0:0`,
@@ -35,7 +37,13 @@ describe('SurfaceActStream', () => {
     const oldest = makeAct('TX-1', 1, 'axone1oldest')
     const newest = makeAct('TX-2', 2, 'axone1newest')
     const wrapper = mount(SurfaceActStream, {
-      props: { acts: [newest, oldest], loading: false, reducedMotion: true, polling: false },
+      props: {
+        acts: [newest, oldest],
+        loading: false,
+        reducedMotion: true,
+        polling: false,
+        explorer: testExplorer,
+      },
     })
 
     await nextTick()
@@ -63,6 +71,7 @@ describe('SurfaceActStream', () => {
     const wrapper = mount(SurfaceActLine, {
       props: {
         act: { ...makeAct('TX-DID', 1, 'axone1issuer'), assertion },
+        explorer: testExplorer,
         reducedMotion: true,
         typingActive: false,
         cursorVisible: false,
@@ -87,6 +96,7 @@ describe('SurfaceActStream', () => {
     const wrapper = mount(SurfaceActLine, {
       props: {
         act: makeAct(txhash, 1, 'axone1issuer'),
+        explorer: testExplorer,
         reducedMotion: true,
         typingActive: false,
         cursorVisible: false,
@@ -94,6 +104,11 @@ describe('SurfaceActStream', () => {
     })
 
     expect(wrapper.get('.surface-act-tx-value').text()).toBe('34BB1E16A405...8A931F')
+    const transactionLink = wrapper.get('.surface-act-tx-value')
+    expect(transactionLink.attributes('href')).toBe(`${testExplorer}/tx/${txhash}`)
+    expect(transactionLink.attributes('aria-label')).toBe(`View transaction ${txhash} in explorer`)
+    expect(transactionLink.attributes('target')).toBe('_blank')
+    expect(transactionLink.attributes('rel')).toBe('noopener noreferrer')
     expect(wrapper.get('.surface-act-tx-copy').attributes('aria-label')).toBe(
       `Copy transaction hash ${txhash}`,
     )
@@ -131,6 +146,7 @@ describe('SurfaceActStream', () => {
     const wrapper = mount(SurfaceActLine, {
       props: {
         act: makeAct('34BB1E16A4051234567890ABCDEF8A931F', 1, 'axone1issuer'),
+        explorer: testExplorer,
         reducedMotion: true,
         typingActive: false,
         cursorVisible: false,
@@ -150,7 +166,13 @@ describe('SurfaceActStream', () => {
     const oldest = makeAct('TX-1', 1, 'axone1oldest')
     const newest = makeAct('TX-2', 2, 'axone1newest')
     const wrapper = mount(SurfaceActStream, {
-      props: { acts: [newest, oldest], loading: false, reducedMotion: false, polling: false },
+      props: {
+        acts: [newest, oldest],
+        loading: false,
+        reducedMotion: false,
+        polling: false,
+        explorer: testExplorer,
+      },
     })
 
     expect(wrapper.findAllComponents(SurfaceActLine)).toHaveLength(1)
@@ -180,7 +202,7 @@ describe('SurfaceActStream', () => {
       makeAct('TX-1', 1, 'axone1oldest'),
     ]
     const wrapper = mount(SurfaceActStream, {
-      props: { acts, loading: false, reducedMotion: true, polling: false },
+      props: { acts, loading: false, reducedMotion: true, polling: false, explorer: testExplorer },
     })
 
     await nextTick()
@@ -205,7 +227,7 @@ describe('SurfaceActStream', () => {
       return makeAct(`TX-${height}`, height, `axone1${height}`)
     })
     const wrapper = mount(SurfaceActStream, {
-      props: { acts, loading: false, reducedMotion: true, polling: false },
+      props: { acts, loading: false, reducedMotion: true, polling: false, explorer: testExplorer },
     })
 
     await nextTick()

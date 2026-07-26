@@ -15,6 +15,7 @@ const props = defineProps<{
   error?: string
   reducedMotion: boolean
   polling: boolean
+  explorer: string
 }>()
 
 const visibleActs = ref<SurfaceAct[]>([])
@@ -196,6 +197,7 @@ onBeforeUnmount(() => {
         <li v-for="act in visibleActs" :key="act.id" class="surface-act-list-item">
           <SurfaceActLine
             :act="act"
+            :explorer="explorer"
             :reducedMotion="reducedMotion"
             :typing-active="typingActId === act.id"
             :cursor-visible="cursorActId === act.id"

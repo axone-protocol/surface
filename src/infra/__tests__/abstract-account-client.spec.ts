@@ -10,6 +10,7 @@ const network: Network = {
   displayName: 'axone-testnet',
   bech32Prefix: 'axone',
   rest: 'https://api.axone.aknodes.net',
+  explorer: 'https://explorer.aknodes.com/AXONE-TESTNET',
   abstractRegistry: 'axone1registry',
   status: 'active',
   selectable: true,
