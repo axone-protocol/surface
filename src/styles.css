@@ -1346,6 +1346,81 @@
     overflow-wrap: anywhere;
   }
 
+  .surface-act-tx-row {
+    align-items: baseline;
+  }
+
+  .surface-act-tx {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .surface-act-tx-value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .surface-act-tx-action {
+    position: relative;
+    flex: 0 0 14px;
+    width: 14px;
+    height: 14px;
+    margin-left: 15px;
+  }
+
+  .surface-act-tx-copy {
+    position: absolute;
+    inset: -15px;
+    display: grid;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    color: var(--color-surface-dim);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    place-items: center;
+  }
+
+  .surface-act-tx-copy:hover,
+  .surface-act-tx-copy:focus-visible {
+    color: var(--color-surface-gold);
+  }
+
+  .surface-act-tx-copy:focus-visible > span {
+    outline: 1px solid currentColor;
+    outline-offset: 3px;
+  }
+
+  .surface-act-tx-copied {
+    position: absolute;
+    inset: 0;
+    display: block;
+    color: var(--color-surface-live);
+    pointer-events: none;
+  }
+
+  .surface-act-tx-copied-icon {
+    display: grid;
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+    line-height: 1;
+    place-items: center;
+  }
+
+  .surface-act-tx-copied-label {
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    transform: translateY(-50%);
+    white-space: nowrap;
+  }
+
   .chain-polling-status {
     display: inline-flex;
     align-items: center;
@@ -1436,6 +1511,16 @@
 
     .surface-act-proof div {
       display: block;
+    }
+
+    .surface-act-proof .surface-act-tx-row {
+      display: grid;
+      grid-template-columns: 4.5em minmax(0, 1fr);
+      align-items: baseline;
+    }
+
+    .surface-act-proof .surface-act-tx-row dd {
+      margin-top: 0;
     }
 
     .surface-act-proof dd {

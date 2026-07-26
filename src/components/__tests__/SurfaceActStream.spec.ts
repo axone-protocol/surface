@@ -27,6 +27,7 @@ function makeAct(id: string, height: number, signer: string) {
 
 describe('SurfaceActStream', () => {
   afterEach(() => {
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -76,6 +77,73 @@ describe('SurfaceActStream', () => {
       'urn:axone:testnet:subject:gh29632273325a1-1',
     ])
     expect(wrapper.get('.surface-act-inscription').text()).toBe(assertion)
+  })
+
+  it('copies a full transaction hash and restores the local copy control after one second', async () => {
+    vi.useFakeTimers()
+    const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const txhash = '34BB1E16A4051234567890ABCDEF8A931F'
+    const wrapper = mount(SurfaceActLine, {
+      props: {
+        act: makeAct(txhash, 1, 'axone1issuer'),
+        reducedMotion: true,
+        typingActive: false,
+        cursorVisible: false,
+      },
+    })
+
+    expect(wrapper.get('.surface-act-tx-value').text()).toBe('34BB1E16A405...8A931F')
+    expect(wrapper.get('.surface-act-tx-copy').attributes('aria-label')).toBe(
+      `Copy transaction hash ${txhash}`,
+    )
+    expect(wrapper.get('.surface-act-tx-copy').text()).toBe('⧉')
+    expect(wrapper.get('.surface-act-tx-action').find('.surface-act-tx-copy').exists()).toBe(true)
+
+    await wrapper.get('.surface-act-tx-copy').trigger('click')
+    await Promise.resolve()
+    await nextTick()
+
+    expect(writeText).toHaveBeenCalledWith(txhash)
+    expect(wrapper.find('.surface-act-tx-copy').exists()).toBe(false)
+    expect(wrapper.get('.surface-act-tx-copied').attributes('role')).toBe('status')
+    expect(wrapper.get('.surface-act-tx-copied').text()).toContain('✓')
+    expect(wrapper.get('.surface-act-tx-copied').text()).toContain('Copied')
+    expect(wrapper.get('.surface-act-tx-action').find('.surface-act-tx-copy').exists()).toBe(false)
+    expect(wrapper.get('.surface-act-tx-copied-icon').text()).toBe('✓')
+    expect(wrapper.get('.surface-act-tx-copied-label').text()).toBe('Copied')
+
+    vi.advanceTimersByTime(999)
+    await nextTick()
+    expect(wrapper.find('.surface-act-tx-copied').exists()).toBe(true)
+
+    vi.advanceTimersByTime(1)
+    await nextTick()
+    expect(wrapper.find('.surface-act-tx-copied').exists()).toBe(false)
+    expect(wrapper.find('.surface-act-tx-copy').exists()).toBe(true)
+  })
+
+  it('keeps the transaction copy control available when clipboard writing fails', async () => {
+    const writeText = vi
+      .fn<(text: string) => Promise<void>>()
+      .mockRejectedValue(new Error('Clipboard unavailable'))
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const wrapper = mount(SurfaceActLine, {
+      props: {
+        act: makeAct('34BB1E16A4051234567890ABCDEF8A931F', 1, 'axone1issuer'),
+        reducedMotion: true,
+        typingActive: false,
+        cursorVisible: false,
+      },
+    })
+
+    await wrapper.get('.surface-act-tx-copy').trigger('click')
+    await Promise.resolve()
+    await nextTick()
+
+    expect(writeText).toHaveBeenCalledOnce()
+    expect(wrapper.find('.surface-act-tx-copied').exists()).toBe(false)
+    expect(wrapper.get('.surface-act-tx-copy').attributes('disabled')).toBeUndefined()
   })
 
   it('reveals exactly one record assertion at a time', async () => {
