@@ -37,28 +37,14 @@ jobs:
         with:
           node-version: 24
 
-      - name: Install capture tool
-        run: npm install --global capture-website-cli@4.0.0
+      - name: Install dependencies
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
 
       - name: Capture website
-        run: |
-          # --no-sandbox is required because Ubuntu 24.04+ runners disable unprivileged
-          # user namespaces via AppArmor, making the Chromium sandbox unavailable in CI.
-          # --disable-dev-shm-usage prevents renderer crashes caused by the default
-          # 64 MB /dev/shm limit on GitHub Actions runners, which would otherwise cause
-          # a silent hang and a navigation timeout.
-          capture-website \
-            --type webp \
-            --quality=0.7 \
-            --width=1440 \
-            --full-page \
-            --delay=15 \
-            --timeout=120 \
-            --throw-on-http-error \
-            --launch-options='{"headless":true,"args":["--no-sandbox","--disable-dev-shm-usage"]}' \
-            --output surface.webp \
-            --overwrite \
-            https://surface.axone.xyz/
+        run: pnpm exec node scripts/capture-website.mjs
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v7
