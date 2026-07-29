@@ -34,9 +34,10 @@
               pkgs.python3
               pkgs.rtk
               pkgs.shellcheck
+              pkgs.typescript-language-server
+              pkgs.vue-language-server
               pkgs.yamllint
             ];
-
             shellHook = ''
               echo "Axone Surface development environment loaded"
             '';
