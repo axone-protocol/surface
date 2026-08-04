@@ -393,16 +393,8 @@ onBeforeUnmount(() => {
         <p class="actor-line" aria-live="polite" aria-atomic="true">
           <span>{{ activeActorLine }}</span>
         </p>
-        <p class="sr-only">You decide. The chain records. The register stays public.</p>
       </header>
 
-      <section class="surface-bridge" aria-label="Surface state">
-        <div class="surface-gestures">
-          <a href="#surface-act-stream-title"
-            >Enter the surface <span aria-hidden="true">→</span></a
-          >
-        </div>
-      </section>
 
       <SurfaceActStream
         :acts="acts"
