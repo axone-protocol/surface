@@ -143,7 +143,6 @@ describe('App', () => {
     expect(wrapper.get('.top-connect').text()).toBe('Connect▾')
     expect(wrapper.text()).toContain('axone-testnet')
     expect(wrapper.text()).toContain('CHAIN REGISTER')
-    expect(wrapper.text()).toContain('Enter the surface')
     expect(wrapper.text()).not.toContain('RECORDS')
     expect(wrapper.text()).not.toContain('LAST SYNC')
     expect(wrapper.text()).not.toContain('Awaiting')
@@ -151,6 +150,9 @@ describe('App', () => {
     await wrapper.get('.network-trigger').trigger('click')
     expect(wrapper.text()).toContain('AXONE-1')
     expect(wrapper.text()).toContain('soon')
+    expect(wrapper.get('.network-trigger .menu-chevron').text()).toBe('▾')
+    expect(wrapper.get('#network-menu .surface-dropdown-heading').text()).toBe('NETWORKS')
+    expect(wrapper.find('#network-menu .surface-dropdown-footer').exists()).toBe(false)
   })
 
   it('does not show register metadata when the chain request fails', async () => {
@@ -212,9 +214,12 @@ describe('App', () => {
     ).toBe(false)
 
     await wrapper.get('.top-connect').trigger('click')
-    expect(wrapper.get('.wallet-register-head').text()).toBe('WALLET')
+    expect(wrapper.get('.wallet-menu .surface-dropdown-heading').text()).toBe('WALLET')
     expect(wrapper.get('.wallet-provider').text()).toBe('Keplr')
     expect(wrapper.get('.wallet-address').text()).toBe('axone1wall...ddress')
+    expect(wrapper.find('.wallet-menu .surface-dropdown-footer .wallet-disconnect').exists()).toBe(
+      true,
+    )
     const walletAddressCopy = wrapper.get('.wallet-address-copy')
     expect(walletAddressCopy.text()).toBe('⧉')
     expect(walletAddressCopy.attributes('title')).toBe(walletAddress)
@@ -261,7 +266,8 @@ describe('App', () => {
 
     await wrapper.get('.top-connect').trigger('click')
 
-    expect(wrapper.get('.wallet-register-head').text()).toBe('WALLETS')
+    expect(wrapper.get('.wallet-menu .surface-dropdown-heading').text()).toBe('WALLETS')
+    expect(wrapper.find('.wallet-menu .surface-dropdown-footer').exists()).toBe(false)
     const walletRegisterList = wrapper.get('.wallet-register-list')
     const walletRows = walletRegisterList.findAll('.wallet-option')
     expect(walletRows).toHaveLength(2)

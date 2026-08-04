@@ -199,8 +199,7 @@
     animation: network-live 2200ms ease-out infinite;
   }
 
-  .network-menu,
-  .wallet-menu {
+  .surface-dropdown {
     position: absolute;
     top: calc(100% + 12px);
     right: 0;
@@ -299,11 +298,7 @@
     text-underline-offset: 5px;
   }
 
-  .wallet-menu {
-    gap: 0;
-  }
-
-  .wallet-register-head {
+  .surface-dropdown-heading {
     padding: 8px 12px;
     color: var(--color-surface-gold);
     border-left: 1px solid var(--color-surface-gold);
@@ -476,10 +471,10 @@
     place-items: center;
   }
 
-  .wallet-menu-separator {
-    height: 1px;
-    margin: 6px 4px;
-    background: var(--color-surface-line);
+  .surface-dropdown-footer {
+    margin: 6px 4px 0;
+    padding-top: 6px;
+    border-top: 1px solid var(--color-surface-line);
   }
 
   .surface-gestures span {

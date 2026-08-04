@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import HeroCanvas from './components/HeroCanvas.vue'
 import SurfaceActStream from './components/SurfaceActStream.vue'
+import SurfaceDropdown from './components/SurfaceDropdown.vue'
 import { useSurfaceActs } from './composables/useSurfaceActs'
 import { useWalletConnection } from './composables/useWalletConnection'
 import type { WalletProviderId } from './domain/wallet-connection'
@@ -239,15 +240,15 @@ onBeforeUnmount(() => {
             <span v-if="!walletTriggerDisabled" class="menu-chevron" aria-hidden="true">▾</span>
           </button>
           <p class="sr-only" role="status" aria-live="polite">{{ walletAnnouncement }}</p>
-          <div
+          <SurfaceDropdown
             v-if="walletMenuOpen"
             id="wallet-menu"
-            class="network-menu wallet-menu"
-            role="menu"
+            class="wallet-menu"
             aria-label="Wallet connection"
+            :heading="walletConnection ? 'WALLET' : 'WALLETS'"
+            :has-footer="Boolean(walletConnection)"
           >
             <template v-if="!walletConnection">
-              <div class="wallet-register-head">WALLETS</div>
               <div class="wallet-register-list">
                 <button
                   class="network-option wallet-option"
@@ -291,7 +292,6 @@ onBeforeUnmount(() => {
               </p>
             </template>
             <template v-else>
-              <div class="wallet-register-head">WALLET</div>
               <div class="wallet-connection-details">
                 <p class="wallet-provider">
                   {{ walletConnection.provider === 'keplr' ? 'Keplr' : 'Leap' }}
@@ -320,7 +320,8 @@ onBeforeUnmount(() => {
                   </span>
                 </div>
               </div>
-              <div class="wallet-menu-separator" aria-hidden="true" />
+            </template>
+            <template #footer>
               <button
                 class="network-option wallet-disconnect"
                 type="button"
@@ -330,7 +331,7 @@ onBeforeUnmount(() => {
                 Disconnect
               </button>
             </template>
-          </div>
+          </SurfaceDropdown>
           <span class="surface-actions-divider" aria-hidden="true">|</span>
           <button
             class="network-trigger"
@@ -342,13 +343,13 @@ onBeforeUnmount(() => {
           >
             <span class="network-live-dot" aria-hidden="true" />
             <span>{{ selectedNetwork.displayName }}</span>
+            <span class="menu-chevron" aria-hidden="true">▾</span>
           </button>
-          <div
+          <SurfaceDropdown
             v-if="networkMenuOpen"
             id="network-menu"
-            class="network-menu"
-            role="menu"
             aria-label="Network selection"
+            heading="NETWORKS"
           >
             <button
               v-for="network in networks"
@@ -371,7 +372,7 @@ onBeforeUnmount(() => {
                 <span v-if="!network.selectable" class="network-option-soon">soon</span>
               </span>
             </button>
-          </div>
+          </SurfaceDropdown>
         </div>
       </nav>
 
@@ -394,7 +395,6 @@ onBeforeUnmount(() => {
           <span>{{ activeActorLine }}</span>
         </p>
       </header>
-
 
       <SurfaceActStream
         :acts="acts"
