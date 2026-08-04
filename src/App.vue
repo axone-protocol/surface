@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 import HeroCanvas from './components/HeroCanvas.vue'
 import SurfaceActStream from './components/SurfaceActStream.vue'
 import { useSurfaceActs } from './composables/useSurfaceActs'
-import { useAbstractAccountIdentities } from './composables/useAbstractAccountIdentities'
 import { useWalletConnection } from './composables/useWalletConnection'
-import { compactCanonicalDid } from './domain/abstract-account'
 import type { WalletProviderId } from './domain/wallet-connection'
 import { networks, type Network } from './networks'
 import { surfaceLaws } from './surfaceLaws'
@@ -49,67 +47,20 @@ const {
   errorMessage: walletErrorMessage,
   availableProviders: availableWalletProviders,
   connect: connectWalletClient,
+  disconnect: disconnectWalletClient,
 } = useWalletConnection(selectedNetwork)
-const {
-  status: identityDiscoveryStatus,
-  identities,
-  activeIdentity,
-  errorMessage: identityErrorMessage,
-  selectIdentity,
-} = useAbstractAccountIdentities({ connection: walletConnection }, selectedNetwork)
-const identityAnnouncement = ref('')
-type IdentityDiscoveryPhase = 'idle' | 'pending' | 'reveal'
-const identityDiscoveryPhase = ref<IdentityDiscoveryPhase>('idle')
-const revealedIdentityCount = ref<number | null>(null)
-let identityRevealTimer: number | undefined
-function clearIdentityRevealTimer() {
-  if (identityRevealTimer !== undefined) {
-    window.clearTimeout(identityRevealTimer)
-    identityRevealTimer = undefined
+const walletAnnouncement = ref('')
+const walletAddressCopyState = ref<'idle' | 'copying' | 'copied'>('idle')
+let walletAddressCopiedTimer: number | undefined
+let isUnmounted = false
+const walletTriggerLabel = computed(() => {
+  if (walletConnectionStatus.value === 'connecting') {
+    return 'Waiting for wallet...'
   }
-}
-watch(
-  [walletConnectionStatus, identityDiscoveryStatus],
-  ([connectionStatus, discoveryStatus]) => {
-    clearIdentityRevealTimer()
-    if (connectionStatus === 'connecting' || discoveryStatus === 'loading') {
-      identityDiscoveryPhase.value = 'pending'
-      revealedIdentityCount.value = null
-      return
-    }
-    if (
-      connectionStatus === 'connected' &&
-      discoveryStatus === 'ready' &&
-      walletConnection.value &&
-      identityDiscoveryPhase.value !== 'reveal'
-    ) {
-      revealedIdentityCount.value = identities.value.length
-      identityDiscoveryPhase.value = 'reveal'
-      identityRevealTimer = window.setTimeout(() => {
-        identityDiscoveryPhase.value = 'idle'
-        revealedIdentityCount.value = null
-        identityRevealTimer = undefined
-      }, 900)
-      return
-    }
-    identityDiscoveryPhase.value = 'idle'
-    revealedIdentityCount.value = null
-  },
-  { immediate: true },
-)
-const identityTriggerLabel = computed(() => {
-  if (!walletConnection.value) {
-    return 'Connect'
-  }
-  if (identityDiscoveryStatus.value === 'error') {
-    return 'Identity unavailable'
-  }
-  if (!activeIdentity.value) {
-    return 'No identity'
-  }
-  return activeIdentity.value.label
+
+  return walletConnection.value ? 'Connected' : 'Connect'
 })
-const identityTriggerDisabled = computed(() => identityDiscoveryPhase.value === 'pending')
+const walletTriggerDisabled = computed(() => walletConnectionStatus.value === 'connecting')
 
 function updateReducedMotion(event?: MediaQueryListEvent) {
   prefersReducedMotion.value = event?.matches ?? motionQuery?.matches ?? false
@@ -147,14 +98,46 @@ async function connectWallet(provider: WalletProviderId) {
   }
 }
 
-function selectAndCloseIdentity(address: string) {
-  selectIdentity(address)
-  walletMenuOpen.value = false
+function compactWalletAddress(address: string): string {
+  return address.length <= 16 ? address : `${address.slice(0, 10)}...${address.slice(-6)}`
 }
 
-async function copyIdentityDid(did: string) {
-  await navigator.clipboard.writeText(did)
-  identityAnnouncement.value = 'Full identity DID copied.'
+function clearWalletAddressCopiedTimer() {
+  window.clearTimeout(walletAddressCopiedTimer)
+  walletAddressCopiedTimer = undefined
+}
+
+async function copyWalletAddress(address: string) {
+  if (walletAddressCopyState.value !== 'idle') {
+    return
+  }
+
+  walletAddressCopyState.value = 'copying'
+  try {
+    await navigator.clipboard.writeText(address)
+  } catch {
+    if (!isUnmounted) {
+      walletAddressCopyState.value = 'idle'
+      walletAnnouncement.value = 'Could not copy wallet address.'
+    }
+    return
+  }
+
+  if (isUnmounted) {
+    return
+  }
+
+  walletAnnouncement.value = 'Wallet address copied.'
+  walletAddressCopyState.value = 'copied'
+  walletAddressCopiedTimer = window.setTimeout(() => {
+    walletAddressCopiedTimer = undefined
+    walletAddressCopyState.value = 'idle'
+  }, 1000)
+}
+
+function disconnectWallet() {
+  disconnectWalletClient()
+  closeMenus()
 }
 
 function rotateActorLine() {
@@ -214,8 +197,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.clearInterval(actorTimer)
-  clearIdentityRevealTimer()
   window.clearInterval(lawTimer)
+  isUnmounted = true
+  clearWalletAddressCopiedTimer()
   if (motionChangeHandler) {
     motionQuery?.removeEventListener('change', motionChangeHandler)
   }
@@ -243,42 +227,24 @@ onBeforeUnmount(() => {
         <div ref="surfaceActionsEl" class="surface-actions" aria-label="Surface actions">
           <button
             class="top-connect"
-            :class="{ 'is-pending': identityTriggerDisabled }"
+            :class="{ 'is-pending': walletTriggerDisabled }"
             type="button"
             aria-haspopup="menu"
             :aria-expanded="walletMenuOpen"
             aria-controls="wallet-menu"
-            :disabled="identityTriggerDisabled"
+            :disabled="walletTriggerDisabled"
             @click="toggleWalletMenu"
           >
-            <Transition name="identity-label" mode="out-in">
-              <span
-                v-if="identityDiscoveryPhase === 'pending'"
-                key="pending"
-                class="identity-status-label"
-              >
-                <span class="identity-resolution-dot is-pending" aria-hidden="true" />
-                Resolving identities
-              </span>
-              <span
-                v-else-if="identityDiscoveryPhase === 'reveal'"
-                key="reveal"
-                class="identity-status-label"
-              >
-                <span class="identity-resolution-dot is-revealed" aria-hidden="true" />
-                {{ revealedIdentityCount }} identities found
-              </span>
-              <span v-else :key="identityTriggerLabel">{{ identityTriggerLabel }}</span>
-            </Transition>
-            <span v-if="walletConnection" class="menu-chevron" aria-hidden="true">▾</span>
+            <span>{{ walletTriggerLabel }}</span>
+            <span v-if="!walletTriggerDisabled" class="menu-chevron" aria-hidden="true">▾</span>
           </button>
-          <p class="sr-only" role="status" aria-live="polite">{{ identityAnnouncement }}</p>
+          <p class="sr-only" role="status" aria-live="polite">{{ walletAnnouncement }}</p>
           <div
             v-if="walletMenuOpen"
             id="wallet-menu"
             class="network-menu wallet-menu"
             role="menu"
-            aria-label="Identity connection"
+            aria-label="Wallet connection"
           >
             <template v-if="!walletConnection">
               <div class="wallet-register-head">WALLETS</div>
@@ -318,81 +284,51 @@ onBeforeUnmount(() => {
                 role="status"
                 aria-live="polite"
               >
-                Install Keplr or Leap to connect an Axone identity.
+                Install Keplr or Leap to connect a wallet.
               </p>
               <p v-if="walletErrorMessage" class="wallet-menu-error" role="alert">
                 {{ walletErrorMessage }}
               </p>
             </template>
-            <p
-              v-else-if="
-                walletConnectionStatus === 'connecting' || identityDiscoveryStatus === 'loading'
-              "
-              class="wallet-menu-status"
-              role="status"
-              aria-live="polite"
-            >
-              Discovering identities…
-            </p>
-            <p
-              v-else-if="identityDiscoveryStatus === 'error'"
-              class="wallet-menu-error"
-              role="alert"
-            >
-              {{ identityErrorMessage }}
-            </p>
-            <template v-else-if="identities.length === 0">
-              <p class="identity-section-heading">No identity</p>
-              <p class="identity-empty-message">This wallet does not control any identity.</p>
-              <div class="identity-menu-separator" aria-hidden="true" />
-              <p class="identity-management-affordance">Create identity…</p>
-              <p class="identity-management-affordance">Import existing identity…</p>
-            </template>
-            <template v-else-if="activeIdentity">
-              <div class="identity-current-row" aria-current="true">
-                <p class="identity-name">
-                  <span class="identity-current-dot" aria-hidden="true">●</span> Anonymous
+            <template v-else>
+              <div class="wallet-register-head">WALLET</div>
+              <div class="wallet-connection-details">
+                <p class="wallet-provider">
+                  {{ walletConnection.provider === 'keplr' ? 'Keplr' : 'Leap' }}
                 </p>
-                <div class="identity-evidence">
-                  <span
-                    class="identity-did"
-                    :title="activeIdentity.did"
-                    :aria-label="`Full identity DID: ${activeIdentity.did}`"
-                    >{{ compactCanonicalDid(activeIdentity.did) }}</span
-                  >
-                  <button
-                    class="identity-copy"
-                    type="button"
-                    aria-label="Copy full identity DID"
-                    @click="copyIdentityDid(activeIdentity.did)"
-                  >
-                    ⧉
-                  </button>
+                <div class="wallet-address-row">
+                  <span class="wallet-address" :title="walletConnection.address">
+                    {{ compactWalletAddress(walletConnection.address) }}
+                  </span>
+                  <span class="wallet-address-action">
+                    <button
+                      v-if="walletAddressCopyState !== 'copied'"
+                      class="wallet-address-copy"
+                      type="button"
+                      role="menuitem"
+                      :disabled="walletAddressCopyState === 'copying'"
+                      :title="walletConnection.address"
+                      :aria-label="`Copy wallet address: ${walletConnection.address}`"
+                      @click="copyWalletAddress(walletConnection.address)"
+                    >
+                      <span aria-hidden="true">⧉</span>
+                    </button>
+                    <span v-else class="wallet-address-copied" role="status">
+                      <span class="wallet-address-copied-icon" aria-hidden="true">✓</span>
+                      <span class="wallet-address-copied-label">Copied</span>
+                    </span>
+                  </span>
                 </div>
               </div>
-              <template v-if="identities.length > 1">
-                <div class="identity-menu-separator" aria-hidden="true" />
-                <p class="identity-section-heading">Other identities</p>
-                <button
-                  v-for="identity in identities.filter(
-                    (entry) => entry.address !== activeIdentity?.address,
-                  )"
-                  :key="identity.address"
-                  class="network-option wallet-option identity-choice"
-                  type="button"
-                  role="menuitemradio"
-                  :aria-checked="false"
-                  @click="selectAndCloseIdentity(identity.address)"
-                >
-                  <span>{{ identity.label }}</span>
-                  <span
-                    class="identity-did"
-                    :title="identity.did"
-                    :aria-label="`Full identity DID: ${identity.did}`"
-                    >{{ compactCanonicalDid(identity.did) }}</span
-                  >
-                </button>
-              </template>
+              <div class="wallet-menu-separator" aria-hidden="true" />
+              <button
+                class="network-option wallet-disconnect"
+                type="button"
+                role="menuitem"
+                @click="disconnectWallet"
+              >
+                Disconnect
+              </button>
             </template>
           </div>
           <span class="surface-actions-divider" aria-hidden="true">|</span>
