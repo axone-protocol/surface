@@ -47,6 +47,18 @@ function rememberProvider(provider: WalletProviderId) {
   }
 }
 
+function forgetProvider() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    window.localStorage.removeItem(walletProviderStorageKey)
+  } catch {
+    // Persistence is optional; runtime wallet state remains authoritative.
+  }
+}
+
 export type WalletConnectionStatus = 'idle' | 'connecting' | 'connected' | 'error'
 
 export type ConnectedWallet = WalletAccount & {
@@ -80,7 +92,7 @@ export function useWalletConnection(
   const availableProviders = computed(() => client.availableProviders())
   let stopWatchingAccount: (() => void) | null = null
 
-  function disconnect() {
+  function resetConnection() {
     stopWatchingAccount?.()
     stopWatchingAccount = null
     connection.value = null
@@ -88,8 +100,13 @@ export function useWalletConnection(
     status.value = 'idle'
   }
 
+  function disconnect() {
+    resetConnection()
+    forgetProvider()
+  }
+
   function disconnectWithError(message: string) {
-    disconnect()
+    resetConnection()
     errorMessage.value = message
     status.value = 'error'
   }
@@ -99,7 +116,7 @@ export function useWalletConnection(
   }
 
   async function connect(provider: WalletProviderId) {
-    disconnect()
+    resetConnection()
     status.value = 'connecting'
 
     try {

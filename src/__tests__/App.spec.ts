@@ -255,7 +255,7 @@ describe('App', () => {
     await wrapper.get('.wallet-disconnect').trigger('click')
     expect(wrapper.find('#wallet-menu').exists()).toBe(false)
     expect(wrapper.get('.top-connect').text()).toBe('Connect▾')
-    expect(localStorage.getItem('axone.surface.wallet-provider')).toBe('keplr')
+    expect(localStorage.getItem('axone.surface.wallet-provider')).toBeNull()
   })
 
   it('renders unavailable wallet options when no extension is installed', async () => {

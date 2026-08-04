@@ -78,7 +78,7 @@ afterEach(() => {
 })
 
 describe('useWalletConnection', () => {
-  it('stores the selected provider, address, and chain ID then cleans up locally', async () => {
+  it('stores the selected provider, address, and chain ID then clears them on disconnect', async () => {
     const fake = createClient({ address: 'axone1connected' })
     const { state } = mountConnection(fake.client)
 
@@ -97,6 +97,7 @@ describe('useWalletConnection', () => {
     expect(fake.cleanup).toHaveBeenCalledOnce()
     expect(state.status.value).toBe('idle')
     expect(state.connection.value).toBeNull()
+    expect(localStorage.getItem('axone.surface.wallet-provider')).toBeNull()
   })
 
   it('rejects an address outside the selected Axone network', async () => {
