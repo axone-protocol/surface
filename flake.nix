@@ -16,12 +16,18 @@
       ];
 
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+      nixpkgsFor =
+        system:
+        import nixpkgs {
+          inherit system;
+          config.allowDeprecatedx86_64Darwin = true;
+        };
     in
     {
       devShells = forAllSystems (
         system:
         let
-          pkgs = nixpkgs.legacyPackages.${system};
+          pkgs = nixpkgsFor system;
         in
         {
           default = pkgs.mkShell {
