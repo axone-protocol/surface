@@ -119,15 +119,26 @@
 
   .surface-mark {
     color: var(--color-surface-text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    line-height: 1;
+  }
+
+  .surface-mark-separator {
+    color: var(--color-surface-text-ghost);
   }
 
   .surface-bar {
     display: flex;
+    gap: 40px;
+    align-items: center;
     justify-content: space-between;
-    gap: 20px;
-    align-items: flex-start;
     min-width: 0;
     max-width: 100%;
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--color-surface-faint);
   }
 
   .top-connect,
@@ -146,31 +157,37 @@
   .surface-actions {
     position: relative;
     display: flex;
+    flex: 0 0 auto;
+    gap: 18px;
     align-items: center;
     justify-content: flex-end;
-    gap: 10px;
-    flex: 0 0 auto;
-    margin-left: auto;
     min-width: 0;
+    margin-left: auto;
+    color: var(--color-surface-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    line-height: 1;
   }
 
   .surface-actions-divider {
-    color: var(--color-surface-dim);
-    font-weight: 300;
+    color: var(--color-surface-line);
+    font-weight: 400;
   }
 
   .top-connect,
   .network-trigger {
     display: inline-flex;
+    gap: 6px;
     align-items: center;
-    min-height: 32px;
-    gap: 8px;
-    font-size: 0.9rem;
+    min-height: auto;
+    font: inherit;
     white-space: nowrap;
   }
 
   .top-connect {
-    color: var(--color-surface-text);
+    color: var(--color-surface-dim);
   }
 
   .top-connect.is-pending,
@@ -190,12 +207,11 @@
   }
 
   .network-live-dot {
-    width: 7px;
-    height: 7px;
+    flex: none;
+    width: 6px;
+    height: 6px;
     background: var(--color-surface-live);
     border-radius: 50%;
-    box-shadow: 0 0 0 0 var(--color-surface-live-ring);
-    animation: network-live 2200ms ease-out infinite;
   }
 
   .surface-dropdown {
@@ -384,6 +400,7 @@
 
   .menu-chevron {
     display: inline-block;
+    color: rgba(240, 234, 220, 0.36);
     font-size: 1em;
     transform: rotate(0deg);
     transform-origin: center;
@@ -394,6 +411,7 @@
   .network-trigger[aria-expanded='true'] .menu-chevron {
     transform: rotate(180deg);
   }
+
 
   .wallet-connection-details {
     display: grid;
@@ -578,13 +596,10 @@
     animation: none;
   }
 
-  .is-reduced-motion .network-live-dot {
-    animation: none;
-  }
-
   .is-reduced-motion .menu-chevron {
     transition: none;
   }
+
 
   .doctrine-hero h1 {
     margin: 0;

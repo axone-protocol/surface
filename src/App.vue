@@ -229,7 +229,7 @@ onBeforeUnmount(() => {
 
     <section class="surface-document" aria-label="Axone Surface">
       <nav class="surface-bar" aria-label="Surface heading">
-        <p class="surface-mark">AXONE / SURFACE</p>
+        <p class="surface-mark">AXONE <span class="surface-mark-separator">/</span> SURFACE</p>
         <div ref="surfaceActionsEl" class="surface-actions" aria-label="Surface actions">
           <button
             class="top-connect"
