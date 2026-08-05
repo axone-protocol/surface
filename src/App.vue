@@ -397,14 +397,20 @@ onBeforeUnmount(() => {
             aria-live="polite"
             aria-atomic="true"
           >
-            <span>{{ activeLaw.number }} / {{ activeLaw.title }}</span>
-            <span class="law-separator" aria-hidden="true">-</span>
-            <span class="law-paraphrase">{{ activeLaw.paraphrase }}</span>
+            <span class="law-number">{{ activeLaw.number }}</span>
+            <span class="law-content">
+              <span class="law-title">{{ activeLaw.title }}</span>
+              <span class="law-separator" aria-hidden="true">—</span>
+              <span class="law-paraphrase">{{ activeLaw.paraphrase }}</span>
+            </span>
+            <span class="law-rule" aria-hidden="true"></span>
           </p>
         </Transition>
-        <h1>GOVERN ACT</h1>
+        <h1>GOVERN<br /><span class="act">ACT</span></h1>
         <p class="actor-line" aria-live="polite" aria-atomic="true">
-          <span>{{ activeActorLine }}</span>
+          <Transition name="actor-turn" mode="out-in">
+            <span :key="activeActorIndex">{{ activeActorLine }}</span>
+          </Transition>
         </p>
       </header>
 

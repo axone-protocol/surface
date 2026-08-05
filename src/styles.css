@@ -1,12 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Geist:wght@300..700&family=IBM+Plex+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 
 @theme {
   --font-sans:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-display:
-    'DM Sans', Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    sans-serif;
+  --font-display: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
   --font-register-sans: 'Geist', Inter, ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
   --color-surface-bg: #080605;
@@ -504,11 +502,11 @@
 
   .doctrine-hero {
     display: grid;
-    gap: clamp(10px, 1.6vw, 18px);
+    gap: clamp(20px, 2.8vw, 30px);
     align-content: end;
     min-width: 0;
-    min-height: clamp(270px, 36dvh, 430px);
-    padding-top: clamp(18px, 3.6vw, 48px);
+    min-height: clamp(400px, 48dvh, 520px);
+    padding: clamp(40px, 5vw, 64px) 0 clamp(36px, 4vw, 56px);
     overflow: hidden;
     border-bottom: 1px solid var(--color-surface-line);
   }
@@ -516,17 +514,46 @@
   .law-line {
     display: flex;
     flex-wrap: wrap;
-    gap: 0 0.35em;
-    min-height: 1.35em;
+    gap: 8px 12px;
+    align-items: baseline;
+    min-height: 1.6rem;
     width: 100%;
-    max-width: 72ch;
+    margin: 0;
     color: var(--color-surface-gold-strong);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.14em;
+    line-height: 1.4;
     overflow-wrap: anywhere;
     word-break: break-word;
   }
 
-  .law-paraphrase {
+  .law-number {
+    flex: none;
+    color: var(--color-surface-gold);
+    font-family: var(--font-display);
+    font-size: 1.65rem;
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 0.8;
+  }
+
+  .law-content {
+    display: flex;
+    flex: 0 1 62ch;
+    flex-wrap: wrap;
+    gap: 0 0.65em;
     min-width: 0;
+  }
+
+  .law-rule {
+    flex: 1 1 48px;
+    align-self: center;
+    min-width: 48px;
+    height: 1px;
+    background: var(--color-surface-gold-line);
   }
 
   .law-fade-enter-active,
@@ -560,31 +587,61 @@
   }
 
   .doctrine-hero h1 {
-    max-width: 11ch;
     margin: 0;
     color: var(--color-surface-text);
-    font-size: clamp(5.2rem, 16vw, 14rem);
     font-family: var(--font-display);
-    font-weight: 200;
-    letter-spacing: 0;
-    line-height: 0.8;
+    font-size: clamp(6rem, 10vw, 8.25rem);
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    line-height: 0.92;
     overflow-wrap: normal;
+  }
+
+  .doctrine-hero h1 .act {
+    color: var(--color-surface-text-quiet);
+    font-style: italic;
   }
 
   .actor-line {
     display: block;
-    min-height: 1.45em;
-    max-width: 860px;
-    margin: 0 0 clamp(14px, 3vw, 28px);
+    min-height: 1.25em;
+    margin: 0;
     color: var(--color-surface-muted);
-    font-size: clamp(1.22rem, 2.6vw, 2.25rem);
-    font-weight: 430;
-    line-height: 1.22;
+    font-family: var(--font-display);
+    font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+    font-style: italic;
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
   }
 
   .actor-line span {
     display: inline-block;
-    animation: line-turn 4600ms ease both infinite;
+  }
+
+  .actor-turn-enter-active,
+  .actor-turn-leave-active {
+    transition:
+      opacity 260ms ease,
+      transform 260ms ease;
+  }
+
+  .actor-turn-enter-from,
+  .actor-turn-leave-to {
+    opacity: 0;
+  }
+
+  .actor-turn-enter-from {
+    transform: translateY(0.3em);
+  }
+
+  .actor-turn-leave-to {
+    transform: translateY(-0.24em);
+  }
+
+  .is-reduced-motion .actor-turn-enter-active,
+  .is-reduced-motion .actor-turn-leave-active {
+    transition: none;
   }
 
   .surface-bridge {
@@ -920,32 +977,49 @@
 
     .doctrine-hero {
       width: 100%;
-      min-height: 330px;
-      padding-top: 20px;
+      min-height: 360px;
+      padding: 30px 0 28px;
     }
 
     .law-line {
       display: grid;
-      gap: 4px;
-      width: min(100%, calc(100vw - 24px));
-      max-width: min(100%, calc(100vw - 24px));
-      line-height: 1.25;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 8px 10px;
+      width: 100%;
+      max-width: 100%;
+      line-height: 1.4;
+    }
+
+    .law-content {
+      display: block;
     }
 
     .law-separator {
       display: none;
     }
 
+    .law-paraphrase {
+      display: block;
+      margin-top: 4px;
+    }
+
+    .law-rule {
+      grid-column: 1 / -1;
+      width: 100%;
+      min-width: 0;
+      margin-top: 3px;
+    }
+
     .doctrine-hero h1 {
-      max-width: 6ch;
-      font-size: clamp(3.7rem, 17vw, 4.7rem);
-      line-height: 0.86;
+      max-width: none;
+      font-size: clamp(4.8rem, 20vw, 6.4rem);
+      line-height: 0.88;
     }
 
     .actor-line {
       max-width: 100%;
-      margin-bottom: 20px;
-      font-size: clamp(1.05rem, 4.8vw, 1.55rem);
+      margin: 0;
+      font-size: clamp(1.35rem, 6.5vw, 1.8rem);
     }
 
     .surface-bridge {
@@ -1448,17 +1522,17 @@
     }
 
     .doctrine-hero {
-      min-height: clamp(240px, 34dvh, 380px);
-      padding-top: 16px;
+      min-height: clamp(300px, 46dvh, 440px);
+      padding: 30px 0 28px;
     }
 
     .doctrine-hero h1 {
-      font-size: clamp(4.4rem, 18vw, 8.4rem);
+      font-size: clamp(4.8rem, 20vw, 6.4rem);
     }
 
     .actor-line {
-      margin-bottom: 18px;
-      font-size: clamp(1rem, 4.2vw, 1.35rem);
+      margin: 0;
+      font-size: clamp(1.35rem, 6.5vw, 1.8rem);
     }
 
     .surface-bridge {
@@ -1550,24 +1624,6 @@
   }
 }
 
-@keyframes line-turn {
-  0% {
-    opacity: 0;
-    transform: translateY(0.42em);
-  }
-
-  12%,
-  78% {
-    opacity: 1;
-
-    transform: translateY(0);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translateY(-0.34em);
-  }
-}
 
 @keyframes heartbeat {
   0% {
