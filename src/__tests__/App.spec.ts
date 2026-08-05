@@ -147,12 +147,17 @@ describe('App', () => {
     expect(wrapper.text()).not.toContain('LAST SYNC')
     expect(wrapper.text()).not.toContain('Awaiting')
 
+    expect(wrapper.get('.network-trigger').attributes('aria-expanded')).toBe('false')
     await wrapper.get('.network-trigger').trigger('click')
     expect(wrapper.text()).toContain('AXONE-1')
     expect(wrapper.text()).toContain('soon')
     expect(wrapper.get('.network-trigger .menu-chevron').text()).toBe('▾')
+    expect(wrapper.get('.network-trigger').attributes('aria-expanded')).toBe('true')
     expect(wrapper.get('#network-menu .surface-dropdown-heading').text()).toBe('NETWORKS')
     expect(wrapper.find('#network-menu .surface-dropdown-footer').exists()).toBe(false)
+    await wrapper.get('.network-trigger').trigger('click')
+    expect(wrapper.get('.network-trigger').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('#network-menu').exists()).toBe(false)
   })
 
   it('does not show register metadata when the chain request fails', async () => {

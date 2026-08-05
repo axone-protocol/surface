@@ -165,8 +165,9 @@
   .network-trigger {
     display: inline-flex;
     align-items: center;
+    min-height: 32px;
     gap: 8px;
-    font-size: 0.82rem;
+    font-size: 0.9rem;
     white-space: nowrap;
   }
 
@@ -385,7 +386,15 @@
 
   .menu-chevron {
     display: inline-block;
-    font-size: 0.7rem;
+    font-size: 1em;
+    transform: rotate(0deg);
+    transform-origin: center;
+    transition: transform 180ms cubic-bezier(0.2, 0.7, 0.25, 1);
+  }
+
+  .top-connect[aria-expanded='true'] .menu-chevron,
+  .network-trigger[aria-expanded='true'] .menu-chevron {
+    transform: rotate(180deg);
   }
 
   .wallet-connection-details {
@@ -534,6 +543,10 @@
 
   .is-reduced-motion .network-live-dot {
     animation: none;
+  }
+
+  .is-reduced-motion .menu-chevron {
+    transition: none;
   }
 
   .doctrine-hero h1 {
