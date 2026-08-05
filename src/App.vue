@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
-import HeroCanvas from './components/HeroCanvas.vue'
 import SurfaceActStream from './components/SurfaceActStream.vue'
 import SurfaceDropdown from './components/SurfaceDropdown.vue'
 import { useSurfaceActs } from './composables/useSurfaceActs'
@@ -37,7 +36,6 @@ let documentKeydownHandler: ((event: KeyboardEvent) => void) | null = null
 const activeLaw = computed(
   () => surfaceLaws.find((law) => law.id === activeLawId.value) ?? defaultLaw,
 )
-const activeLawIndex = computed(() => surfaceLaws.findIndex((law) => law.id === activeLaw.value.id))
 const activeActorLine = computed(() => actorLines[activeActorIndex.value] ?? actorLines[0])
 const selectedNetwork = computed(
   () => networks.find((network) => network.key === selectedNetworkKey.value) ?? networks[0]!,
@@ -220,12 +218,6 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="surface-home" :class="{ 'is-reduced-motion': prefersReducedMotion }">
-    <HeroCanvas
-      :active-law-index="activeLawIndex"
-      :sealed-count="acts.length"
-      :polling-active="polling"
-      :reduced-motion="prefersReducedMotion"
-    />
 
     <section class="surface-document" aria-label="Axone Surface">
       <nav class="surface-bar" aria-label="Surface heading">

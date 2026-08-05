@@ -79,22 +79,7 @@
     background: var(--color-surface-bg);
   }
 
-  .surface-canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    z-index: 0;
-    width: 100%;
-    height: min(70dvh, 720px);
-    pointer-events: none;
-    opacity: 0.56;
-  }
 
-  .surface-canvas canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
 
   .surface-document {
     position: relative;
