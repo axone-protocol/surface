@@ -139,7 +139,7 @@ describe('App', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain('AXONE / SURFACE')
-    expect(wrapper.text()).toContain('GOVERN ACT')
+    expect(wrapper.get('h1').text()).toBe('GOVERNACT')
     expect(wrapper.get('.top-connect').text()).toBe('Connect▾')
     expect(wrapper.text()).toContain('axone-testnet')
     expect(wrapper.text()).toContain('CHAIN REGISTER')
@@ -236,7 +236,7 @@ describe('App', () => {
       true,
     )
     const walletAddressCopy = wrapper.get('.wallet-address-copy')
-    expect(walletAddressCopy.text()).toBe('⧉')
+    expect(walletAddressCopy.find('svg').exists()).toBe(true)
     expect(walletAddressCopy.attributes('title')).toBe(walletAddress)
     expect(walletAddressCopy.attributes('aria-label')).toBe(`Copy wallet address: ${walletAddress}`)
 

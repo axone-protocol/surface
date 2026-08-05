@@ -146,7 +146,12 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="surface-act-assertion">
-      <p class="surface-act-category">{{ surfaceActKindCategories[act.kind] }}</p>
+      <p
+        class="surface-act-category"
+        :class="`surface-act-category--${surfaceActKindCategories[act.kind].toLowerCase()}`"
+      >
+        {{ surfaceActKindCategories[act.kind] }}
+      </p>
       <p class="surface-act-inscription" :aria-label="act.assertion">
         <template v-for="(part, index) in typedAssertionParts" :key="index">
           <span v-if="part.technical" class="surface-act-identifier">{{ part.text }}</span>
@@ -160,15 +165,7 @@ onBeforeUnmount(() => {
       <div class="surface-act-proof-row surface-act-tx-row">
         <dt>tx</dt>
         <dd class="surface-act-tx">
-          <a
-            class="surface-act-tx-value"
-            :href="transactionExplorerUrl"
-            :title="act.txhash"
-            :aria-label="`View transaction ${act.txhash} in explorer`"
-            target="_blank"
-            rel="noopener noreferrer"
-            >{{ shortValue(act.txhash) }}</a
-          >
+          <span class="surface-act-tx-value">{{ shortValue(act.txhash) }}</span>
           <span class="surface-act-tx-action">
             <button
               v-if="transactionCopyState !== 'copied'"
@@ -178,7 +175,16 @@ onBeforeUnmount(() => {
               :aria-label="`Copy transaction hash ${act.txhash}`"
               @click="copyTransactionHash"
             >
-              <span aria-hidden="true">⧉</span>
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="8" y="8" width="12" height="12" rx="1" />
+                <path d="M4 16V5a1 1 0 0 1 1-1h11" />
+              </svg>
             </button>
             <span v-else class="surface-act-tx-copied" role="status">
               <span class="surface-act-tx-copied-icon" aria-hidden="true">✓</span>
@@ -196,5 +202,25 @@ onBeforeUnmount(() => {
         <dd>{{ act.payload.verdict }}</dd>
       </div>
     </dl>
+    <a
+      class="surface-act-explorer"
+      :href="transactionExplorerUrl"
+      :title="`View transaction ${act.txhash} in explorer`"
+      :aria-label="`View transaction ${act.txhash} in explorer`"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        <path d="M15 3h6v6" />
+        <path d="M10 14 21 3" />
+      </svg>
+    </a>
   </article>
 </template>

@@ -88,7 +88,7 @@ describe('SurfaceActStream', () => {
     expect(wrapper.get('.surface-act-inscription').text()).toBe(assertion)
   })
 
-  it('copies a full transaction hash and restores the local copy control after one second', async () => {
+  it('keeps the transaction text noninteractive, links through the explorer button, and restores copy', async () => {
     vi.useFakeTimers()
     const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { clipboard: { writeText } })
@@ -103,16 +103,19 @@ describe('SurfaceActStream', () => {
       },
     })
 
-    expect(wrapper.get('.surface-act-tx-value').text()).toBe('34BB1E16A405...8A931F')
-    const transactionLink = wrapper.get('.surface-act-tx-value')
-    expect(transactionLink.attributes('href')).toBe(`${testExplorer}/tx/${txhash}`)
-    expect(transactionLink.attributes('aria-label')).toBe(`View transaction ${txhash} in explorer`)
-    expect(transactionLink.attributes('target')).toBe('_blank')
-    expect(transactionLink.attributes('rel')).toBe('noopener noreferrer')
+    const transactionValue = wrapper.get('.surface-act-tx-value')
+    expect(transactionValue.text()).toBe('34BB1E16A405...8A931F')
+    expect(transactionValue.element.tagName).toBe('SPAN')
+    expect(transactionValue.attributes('href')).toBeUndefined()
+    const explorerButton = wrapper.get('.surface-act-explorer')
+    expect(explorerButton.attributes('href')).toBe(`${testExplorer}/tx/${txhash}`)
+    expect(explorerButton.attributes('aria-label')).toBe(`View transaction ${txhash} in explorer`)
+    expect(explorerButton.attributes('target')).toBe('_blank')
+    expect(explorerButton.attributes('rel')).toBe('noopener noreferrer')
     expect(wrapper.get('.surface-act-tx-copy').attributes('aria-label')).toBe(
       `Copy transaction hash ${txhash}`,
     )
-    expect(wrapper.get('.surface-act-tx-copy').text()).toBe('⧉')
+    expect(wrapper.get('.surface-act-tx-copy').find('svg').exists()).toBe(true)
     expect(wrapper.get('.surface-act-tx-action').find('.surface-act-tx-copy').exists()).toBe(true)
 
     await wrapper.get('.surface-act-tx-copy').trigger('click')

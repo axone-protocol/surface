@@ -188,6 +188,7 @@ onBeforeUnmount(() => {
       <span>ENTRY</span>
       <span>STATEMENT</span>
       <span>EVIDENCE</span>
+      <span class="surface-act-action-column" />
     </div>
 
     <p v-if="error" class="surface-act-stream-error">{{ error }}</p>

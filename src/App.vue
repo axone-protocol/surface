@@ -323,7 +323,16 @@ onBeforeUnmount(() => {
                       :aria-label="`Copy wallet address: ${walletConnection.address}`"
                       @click="copyWalletAddress(walletConnection.address)"
                     >
-                      <span aria-hidden="true">⧉</span>
+                      <svg
+                        aria-hidden="true"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <rect x="8" y="8" width="12" height="12" rx="1" />
+                        <path d="M4 16V5a1 1 0 0 1 1-1h11" />
+                      </svg>
                     </button>
                     <span v-else class="wallet-address-copied" role="status">
                       <span class="wallet-address-copied-icon" aria-hidden="true">✓</span>

@@ -80,9 +80,12 @@
   }
 
   .surface-canvas {
-    position: fixed;
-    inset: 0;
+    position: absolute;
+    top: 0;
+    left: 0;
     z-index: 0;
+    width: 100%;
+    height: min(70dvh, 720px);
     pointer-events: none;
     opacity: 0.56;
   }
@@ -412,7 +415,6 @@
     transform: rotate(180deg);
   }
 
-
   .wallet-connection-details {
     display: grid;
     gap: 5px;
@@ -454,56 +456,66 @@
   }
 
   .wallet-address-action {
-    position: relative;
-    flex: 0 0 24px;
-    width: 24px;
-    height: 24px;
+    display: inline-flex;
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
   }
 
   .wallet-address-copy {
-    display: grid;
-    width: 24px;
-    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
     padding: 0;
-    color: var(--color-surface-dim);
+    color: rgba(240, 234, 220, 0.36);
     cursor: pointer;
-    background: transparent;
+    background: none;
     border: 0;
-    font-size: 14px;
-    line-height: 1;
-    place-items: center;
+  }
+
+  .wallet-address-copy svg {
+    width: 12px;
+    height: 12px;
   }
 
   .wallet-address-copy:hover,
   .wallet-address-copy:focus-visible {
-    color: var(--color-surface-gold);
+    color: var(--color-surface-dim);
   }
 
-  .wallet-address-copy:focus-visible > span {
+  .wallet-address-copy:focus-visible {
     outline: 1px solid currentColor;
     outline-offset: 3px;
   }
 
   .wallet-address-copied {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%);
     display: inline-flex;
-    gap: 4px;
     align-items: center;
+    width: 16px;
+    height: 16px;
     color: var(--color-surface-live);
-    font-size: 0.7rem;
-    line-height: 1;
-    white-space: nowrap;
+    cursor: pointer;
   }
 
   .wallet-address-copied-icon {
     display: grid;
-    width: 14px;
-    height: 14px;
-    font-size: 14px;
+    width: 16px;
+    height: 16px;
+    font-size: 12px;
+    line-height: 1;
     place-items: center;
+  }
+
+  .wallet-address-copied-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .surface-dropdown-footer {
@@ -599,7 +611,6 @@
   .is-reduced-motion .menu-chevron {
     transition: none;
   }
-
 
   .doctrine-hero h1 {
     margin: 0;
@@ -1122,84 +1133,47 @@
   }
 
   .surface-act-stream {
-    position: relative;
-    isolation: isolate;
     display: grid;
     gap: 0;
-    padding: 16px 0 14px;
-    font-family: var(--font-register-sans);
-  }
-
-  .surface-act-stream::before {
-    position: absolute;
-    z-index: -1;
-    top: 0;
-    bottom: 0;
-    left: 50%;
-    width: 100vw;
-    background: var(--color-surface-register-bg);
-    border-top: 1px solid var(--color-surface-line-strong);
-    border-bottom: 1px solid var(--color-surface-line);
-    content: '';
-    transform: translateX(-50%);
+    padding: 44px 0 80px;
+    font-family: 'IBM Plex Mono', monospace;
   }
 
   .surface-act-stream-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
     min-width: 0;
-    padding: 0 18px 12px;
-    color: var(--color-surface-text);
+    margin-bottom: 20px;
   }
 
   .surface-act-stream-head p {
     margin: 0;
-    color: var(--color-surface-code);
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
+    color: var(--color-surface-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
     font-weight: 500;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.14em;
     line-height: 1;
     text-transform: uppercase;
   }
 
   .surface-act-column-head {
     display: grid;
-    grid-template-columns: 7.5rem minmax(0, 1fr) minmax(0, 18rem);
-    border-top: 1px solid var(--color-surface-line);
-    border-bottom: 1px solid var(--color-surface-line-strong);
-    font-family: var(--font-mono);
-    font-size: 0.56rem;
-    font-weight: 600;
+    grid-template-columns: 110px minmax(0, 1fr) 280px 36px;
+    border-bottom: 1px solid var(--color-surface-line);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
     line-height: 1;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
   }
 
   .surface-act-column-head span {
     min-width: 0;
-    padding: 8px 10px;
-    color: var(--color-surface-text-quiet);
-  }
-
-  .surface-act-column-head span:nth-child(2) {
-    color: var(--color-surface-gold);
-  }
-
-  .surface-act-column-head span:nth-child(3) {
-    color: var(--color-surface-text);
-  }
-
-  .surface-act-column-head span:nth-child(2),
-  .surface-act-column-head span:nth-child(3) {
-    border-left: 1px solid var(--color-surface-faint);
-  }
-
-  .surface-act-column-head span:nth-child(2) {
-    border-left-color: var(--color-surface-gold);
-    opacity: 0.72;
-  }
-
-  .surface-act-column-head span:first-child {
-    padding-left: 10px;
+    padding: 0 0 10px;
+    color: rgba(240, 234, 220, 0.36);
   }
 
   .surface-act-stream-empty,
@@ -1215,10 +1189,6 @@
   }
 
   .surface-act-list {
-    position: absolute;
-    top: 0;
-    right: 0;
-    left: 0;
     display: grid;
     gap: 0;
     margin: 0;
@@ -1279,16 +1249,7 @@
   }
 
   .surface-act-window {
-    position: relative;
-    height: 560px;
-    overflow: hidden;
-    mask-image: linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0) 0,
-      rgba(0, 0, 0, 0.72) 16px,
-      rgba(0, 0, 0, 1) 48px,
-      rgba(0, 0, 0, 1) 100%
-    );
+    min-width: 0;
   }
 
   .surface-act-row-move,
@@ -1316,18 +1277,22 @@
 
   .surface-act-record {
     display: grid;
-    grid-template-columns: 7.5rem minmax(0, 1fr) minmax(0, 18rem);
+    grid-template-columns: 110px minmax(0, 1fr) 280px 36px;
     min-width: 0;
-    border-top: 1px solid var(--color-surface-line);
+    border-bottom: 1px solid var(--color-surface-faint);
+  }
+
+  .surface-act-record:hover {
+    background: #100f0b;
   }
 
   .surface-act-entry {
     min-width: 0;
-    padding: 12px 8px 12px 10px;
-    color: var(--color-surface-code);
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    line-height: 1.15;
+    padding: 16px 0;
+    color: rgba(240, 234, 220, 0.36);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    line-height: 1.5;
     overflow-wrap: anywhere;
   }
 
@@ -1336,61 +1301,85 @@
   }
 
   .surface-act-entry-suffix {
-    padding-left: 0.42em;
-    color: var(--color-surface-muted);
+    padding-left: 0;
+    color: inherit;
   }
 
   .surface-act-assertion {
     min-width: 0;
-    padding: 12px 18px;
-    border-left: 1px solid var(--color-surface-gold);
-    border-left-color: color-mix(in srgb, var(--color-surface-gold) 72%, transparent);
+    padding: 16px 0;
   }
 
   .surface-act-category {
-    margin: 0 0 6px;
-    color: var(--color-surface-gold-muted);
-    font-family: var(--font-mono);
-    font-size: 0.58rem;
-    font-weight: 650;
-    line-height: 1;
-    text-transform: uppercase;
+    display: inline-block;
+    margin: 0 0 8px;
+    padding: 2px 7px;
+    border-radius: 2px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 400;
     letter-spacing: 0.08em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
+  .surface-act-category--verdict {
+    color: #c79a4b;
+    background: #4a3a1e;
+  }
+
+  .surface-act-category--identity {
+    color: #6e9ab0;
+    background: #253944;
+  }
+
+  .surface-act-category--governance {
+    color: #b0716e;
+    background: #3e2726;
+  }
+
+  .surface-act-category--authority {
+    color: #8fa36e;
+    background: #313a24;
+  }
+
+  .surface-act-category--credential {
+    color: #9e8fc9;
+    background: #332e4a;
   }
 
   .surface-act-inscription {
     margin: 0;
     color: var(--color-surface-text);
-    font-family: var(--font-register-sans);
-    font-size: clamp(0.78rem, 0.6rem + 0.3vw, 0.9rem);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13.5px;
     font-weight: 400;
-    line-height: 1.55;
+    line-height: 1.5;
     overflow-wrap: anywhere;
   }
 
   .surface-act-identifier {
-    font-family: var(--font-mono);
+    color: var(--color-surface-dim);
+    font-family: inherit;
   }
 
   .surface-act-proof {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     align-content: start;
-    gap: 7px;
+    gap: 0;
     min-width: 0;
     margin: 0;
-    padding: 12px 10px;
-    border-left: 1px solid var(--color-surface-faint);
+    padding: 16px 0;
     color: var(--color-surface-dim);
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    line-height: 1.25;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.9;
   }
 
   .surface-act-proof div {
     display: grid;
-    grid-template-columns: 4.5em minmax(0, 1fr);
-    column-gap: 1em;
+    grid-template-columns: 60px minmax(0, 1fr);
     min-width: 0;
   }
 
@@ -1400,14 +1389,14 @@
   }
 
   .surface-act-proof dt {
-    color: var(--color-surface-text-quiet);
+    color: rgba(240, 234, 220, 0.36);
     text-transform: lowercase;
     white-space: nowrap;
   }
 
   .surface-act-proof dd {
-    color: var(--color-surface-muted);
     min-width: 0;
+    color: var(--color-surface-dim);
     overflow-wrap: anywhere;
   }
 
@@ -1416,97 +1405,111 @@
   }
 
   .surface-act-tx {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    max-width: 100%;
     min-width: 0;
   }
 
   .surface-act-tx-value {
-    position: relative;
-    flex: 0 1 auto;
     min-width: 0;
-    overflow-wrap: anywhere;
     color: inherit;
-    text-decoration: underline dotted currentColor;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
-  }
-
-  .surface-act-tx-value::after {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    left: 0;
-    z-index: 1;
-    height: 30px;
-    content: '';
-    transform: translateY(-50%);
-  }
-
-  .surface-act-tx-value:focus-visible {
-    outline: 1px dotted currentColor;
-    outline-offset: 3px;
+    overflow-wrap: anywhere;
   }
 
   .surface-act-tx-action {
-    position: relative;
-    flex: 0 0 14px;
-    width: 14px;
-    height: 14px;
-    margin-left: 23px;
+    display: inline-flex;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-left: 6px;
   }
 
   .surface-act-tx-copy {
-    position: absolute;
-    inset: -15px;
-    z-index: 2;
-    display: grid;
-    width: 44px;
-    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
     padding: 0;
-    color: var(--color-surface-dim);
-    font-size: 14px;
-    line-height: 1;
+    color: rgba(240, 234, 220, 0.36);
     cursor: pointer;
-    background: transparent;
+    background: none;
     border: 0;
-    place-items: center;
+  }
+
+  .surface-act-tx-copy svg {
+    width: 12px;
+    height: 12px;
   }
 
   .surface-act-tx-copy:hover,
   .surface-act-tx-copy:focus-visible {
-    color: var(--color-surface-gold);
+    color: var(--color-surface-dim);
   }
 
-  .surface-act-tx-copy:focus-visible > span {
+  .surface-act-tx-copy:focus-visible {
     outline: 1px solid currentColor;
     outline-offset: 3px;
   }
 
   .surface-act-tx-copied {
-    position: absolute;
-    inset: 0;
-    display: block;
+    display: inline-flex;
+    align-items: center;
+    width: 16px;
+    height: 16px;
     color: var(--color-surface-live);
-    pointer-events: none;
+    cursor: pointer;
   }
 
   .surface-act-tx-copied-icon {
     display: grid;
-    width: 14px;
-    height: 14px;
-    font-size: 14px;
+    width: 16px;
+    height: 16px;
+    font-size: 12px;
     line-height: 1;
     place-items: center;
   }
 
   .surface-act-tx-copied-label {
     position: absolute;
-    top: 50%;
-    left: 20px;
-    transform: translateY(-50%);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  .surface-act-explorer {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: end;
+    align-self: start;
+    width: 26px;
+    height: 26px;
+    margin: 16px 0;
+    color: rgba(240, 234, 220, 0.36);
+    background: none;
+    border: 1px solid var(--color-surface-line);
+    border-radius: 4px;
+  }
+
+  .surface-act-explorer:hover,
+  .surface-act-explorer:focus-visible {
+    color: var(--color-surface-gold);
+    border-color: var(--color-surface-gold-line);
+    outline: none;
+  }
+
+  .surface-act-explorer:focus-visible {
+    outline: 1px solid currentColor;
+    outline-offset: 3px;
+  }
+
+  .surface-act-explorer svg {
+    width: 13px;
+    height: 13px;
   }
 
   .chain-polling-status {
@@ -1555,17 +1558,15 @@
     }
 
     .surface-act-stream {
-      gap: 8px;
-      padding-top: 14px;
-      padding-bottom: 12px;
+      padding: 32px 0 48px;
     }
 
     .surface-act-stream-head {
-      padding: 0 14px 10px;
+      margin-bottom: 16px;
     }
 
     .surface-act-column-head {
-      grid-template-columns: 6.5rem minmax(0, 1fr);
+      grid-template-columns: 6.5rem minmax(0, 1fr) 36px;
     }
 
     .surface-act-column-head span:nth-child(3) {
@@ -1577,49 +1578,30 @@
     }
 
     .surface-act-window {
-      height: 620px;
+      min-width: 0;
     }
 
     .surface-act-record {
-      grid-template-columns: 6.5rem minmax(0, 1fr);
+      grid-template-columns: 6.5rem minmax(0, 1fr) 36px;
     }
 
     .surface-act-assertion {
-      padding-right: 0;
+      padding-right: 8px;
     }
 
     .surface-act-proof {
-      grid-column: 2;
-      grid-template-columns: minmax(0, 1fr);
-      margin-right: auto;
-      padding: 10px 0 0 18px;
-      border-top: 1px solid var(--color-surface-line-strong);
-      border-left: 1px solid var(--color-surface-faint);
+      grid-column: 2 / -1;
+      padding: 0 0 16px;
     }
 
     .surface-act-proof div {
-      display: block;
-    }
-
-    .surface-act-proof .surface-act-tx-row {
       display: grid;
-      grid-template-columns: 4.5em minmax(0, 1fr);
-      align-items: baseline;
+      grid-template-columns: 60px minmax(0, 1fr);
     }
-
-    .surface-act-proof .surface-act-tx-row dd {
-      margin-top: 0;
-    }
-
-    .surface-act-proof dd {
-      margin-top: 2px;
-    }
-
-    .surface-act-proof::before {
-      grid-column: 1 / -1;
-      width: 42px;
-      border-top: 1px solid var(--color-surface-gold-muted);
-      content: '';
+    .surface-act-explorer {
+      grid-column: 3;
+      grid-row: 1;
+      margin: 16px 0 0;
     }
   }
 
@@ -1638,7 +1620,6 @@
     }
   }
 }
-
 
 @keyframes heartbeat {
   0% {
