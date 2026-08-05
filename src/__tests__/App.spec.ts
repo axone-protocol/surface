@@ -222,6 +222,16 @@ describe('App', () => {
     expect(wrapper.get('.wallet-menu .surface-dropdown-heading').text()).toBe('WALLET')
     expect(wrapper.get('.wallet-provider').text()).toBe('Keplr')
     expect(wrapper.get('.wallet-address').text()).toBe('axone1wall...ddress')
+    const walletAddressLink = wrapper.get<HTMLAnchorElement>('.wallet-address')
+    expect(walletAddressLink.attributes('href')).toBe(
+      `https://explorer.aknodes.com/AXONE-TESTNET/account/${walletAddress}`,
+    )
+    expect(walletAddressLink.attributes('title')).toBe(walletAddress)
+    expect(walletAddressLink.attributes('aria-label')).toBe(
+      `View wallet address ${walletAddress} in explorer`,
+    )
+    expect(walletAddressLink.attributes('target')).toBe('_blank')
+    expect(walletAddressLink.attributes('rel')).toBe('noopener noreferrer')
     expect(wrapper.find('.wallet-menu .surface-dropdown-footer .wallet-disconnect').exists()).toBe(
       true,
     )

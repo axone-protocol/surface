@@ -62,6 +62,11 @@ const walletTriggerLabel = computed(() => {
   return walletConnection.value ? 'Connected' : 'Connect'
 })
 const walletTriggerDisabled = computed(() => walletConnectionStatus.value === 'connecting')
+const walletAddressExplorerUrl = computed(() =>
+  walletConnection.value
+    ? `${selectedNetwork.value.explorer}/account/${walletConnection.value.address}`
+    : undefined,
+)
 
 function updateReducedMotion(event?: MediaQueryListEvent) {
   prefersReducedMotion.value = event?.matches ?? motionQuery?.matches ?? false
@@ -297,9 +302,16 @@ onBeforeUnmount(() => {
                   {{ walletConnection.provider === 'keplr' ? 'Keplr' : 'Leap' }}
                 </p>
                 <div class="wallet-address-row">
-                  <span class="wallet-address" :title="walletConnection.address">
+                  <a
+                    class="wallet-address"
+                    :href="walletAddressExplorerUrl"
+                    :title="walletConnection.address"
+                    :aria-label="`View wallet address ${walletConnection.address} in explorer`"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     {{ compactWalletAddress(walletConnection.address) }}
-                  </span>
+                  </a>
                   <span class="wallet-address-action">
                     <button
                       v-if="walletAddressCopyState !== 'copied'"
