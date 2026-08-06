@@ -79,8 +79,6 @@
     background: var(--color-surface-bg);
   }
 
-
-
   .surface-document {
     position: relative;
     z-index: 1;
@@ -544,6 +542,14 @@
     word-break: break-word;
   }
 
+  .law-statement {
+    display: flex;
+    flex: 0 1 auto;
+    gap: 12px;
+    align-items: baseline;
+    min-width: 0;
+  }
+
   .law-number {
     flex: none;
     color: var(--color-surface-gold);
@@ -609,7 +615,7 @@
   }
 
   .doctrine-hero h1 .act {
-    color: var(--color-surface-text-quiet);
+    color: #5a574d;
     font-style: italic;
   }
 
@@ -994,11 +1000,17 @@
 
     .law-line {
       display: grid;
-      grid-template-columns: auto minmax(0, 1fr);
-      gap: 8px 10px;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
       width: 100%;
       max-width: 100%;
       line-height: 1.4;
+    }
+
+    .law-statement {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      gap: 10px;
     }
 
     .law-content {
@@ -1587,21 +1599,6 @@
       grid-column: 3;
       grid-row: 1;
       margin: 16px 0 0;
-    }
-  }
-
-  @media (min-width: 761px) {
-    .surface-act-stream {
-      --surface-act-gutter: clamp(24px, 4vw, 64px);
-      width: 100vw;
-      margin-left: calc(50% - 50vw);
-      padding-right: var(--surface-act-gutter);
-      padding-left: var(--surface-act-gutter);
-    }
-
-    .surface-act-stream-head {
-      padding-right: 0;
-      padding-left: 0;
     }
   }
 }

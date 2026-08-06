@@ -218,7 +218,6 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="surface-home" :class="{ 'is-reduced-motion': prefersReducedMotion }">
-
     <section class="surface-document" aria-label="Axone Surface">
       <nav class="surface-bar" aria-label="Surface heading">
         <p class="surface-mark">AXONE <span class="surface-mark-separator">/</span> SURFACE</p>
@@ -390,23 +389,24 @@ onBeforeUnmount(() => {
       </nav>
 
       <header class="doctrine-hero">
-        <Transition name="law-fade" mode="out-in">
-          <p
-            :key="activeLaw.id"
-            class="law-line"
-            :aria-label="`${activeLaw.number} / ${activeLaw.title} - ${activeLaw.paraphrase}`"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            <span class="law-number">{{ activeLaw.number }}</span>
-            <span class="law-content">
-              <span class="law-title">{{ activeLaw.title }}</span>
-              <span class="law-separator" aria-hidden="true">—</span>
-              <span class="law-paraphrase">{{ activeLaw.paraphrase }}</span>
+        <p
+          class="law-line"
+          :aria-label="`${activeLaw.number} / ${activeLaw.title} - ${activeLaw.paraphrase}`"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <Transition name="law-fade" mode="out-in">
+            <span :key="activeLaw.id" class="law-statement">
+              <span class="law-number">{{ activeLaw.number }}</span>
+              <span class="law-content">
+                <span class="law-title">{{ activeLaw.title }}</span>
+                <span class="law-separator" aria-hidden="true">—</span>
+                <span class="law-paraphrase">{{ activeLaw.paraphrase }}</span>
+              </span>
             </span>
-            <span class="law-rule" aria-hidden="true"></span>
-          </p>
-        </Transition>
+          </Transition>
+          <span class="law-rule" aria-hidden="true"></span>
+        </p>
         <h1>GOVERN<br /><span class="act">ACT</span></h1>
         <p class="actor-line" aria-live="polite" aria-atomic="true">
           <Transition name="actor-turn" mode="out-in">
