@@ -22,7 +22,7 @@ function makeAct(id: string, height: number, signer: string) {
     action: 'instantiate',
     title: 'IDENTITY REGISTERED',
     description: 'Identity recorded.',
-    assertion: `Identity recorded for ${signer}.`,
+    assertion: `Identity established as ${signer}.`,
     payload: {},
   }
 }
@@ -50,11 +50,11 @@ describe('SurfaceActStream', () => {
 
     const records = wrapper.findAll('.surface-act-record')
     expect(records).toHaveLength(2)
-    expect(records[0]!.text()).toContain('Identity recorded for axone1oldest.')
-    expect(records[1]!.text()).toContain('Identity recorded for axone1newest.')
+    expect(records[0]!.text()).toContain('Identity established as axone1oldest.')
+    expect(records[1]!.text()).toContain('Identity established as axone1newest.')
     expect(records[0]!.find('.surface-act-category').text()).toBe('IDENTITY')
     expect(records[0]!.find('.surface-act-inscription').attributes('aria-label')).toBe(
-      'Identity recorded for axone1oldest.',
+      'Identity established as axone1oldest.',
     )
     expect(records[0]!.find('.surface-act-entry').text()).toContain('1.0.0')
     expect(records[0]!.find('.surface-act-proof').text()).toContain('txTX-1')
@@ -67,7 +67,7 @@ describe('SurfaceActStream', () => {
 
   it('renders embedded DID and URN identifiers in monospace spans', async () => {
     const assertion =
-      'Credential issued by did:pkh:…cosmos1s7u…texh8c to urn:axone:testnet:subject:gh29632273325a1-1.'
+      'Credential issued by did:pkh:…cosmos1s7u…texh8c for subject urn:axone:testnet:subject:gh29632273325a1-1.'
     const wrapper = mount(SurfaceActLine, {
       props: {
         act: { ...makeAct('TX-DID', 1, 'axone1issuer'), assertion },

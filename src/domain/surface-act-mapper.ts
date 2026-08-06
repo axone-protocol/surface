@@ -73,6 +73,7 @@ function compactDidIdentifier(identifier: string) {
   return identifier.startsWith('did:pkh:') ? compactCanonicalDid(identifier) : identifier
 }
 
+
 function installedModuleIds(value: string | undefined) {
   if (!value) {
     return []
@@ -197,7 +198,7 @@ function fromInstantiate(
       contractAddress,
       action: 'instantiate',
       description: surfaceActKindDescriptions['identity.created'],
-      assertion: `Identity created for ${subject}.`,
+      assertion: `Identity established as ${subject}.`,
       payload: stringPayload({
         _contract_address: contractAddress,
         code_id: String(message.code_id ?? message['codeId'] ?? ''),
@@ -247,8 +248,8 @@ function mapWasmAbstractEvent(
 
       const assertion =
         kind === 'governance.instantiated'
-          ? `Governance established on ${subject}.`
-          : `Credential authority established on ${subject}.`
+          ? `Governance established for ${subject}.`
+          : `${subject} established as a credential authority.`
       return [
         {
           ...makeActBase(tx, messageIndex, actIndex + moduleIndex, kind),
@@ -289,7 +290,7 @@ function mapWasmAbstractEvent(
         action,
         title: surfaceActKindLabels['governance.decision.recorded'],
         description: surfaceActKindDescriptions['governance.decision.recorded'],
-        assertion: `Decision recorded by ${subject}.`,
+        assertion: `Verdict recorded by ${subject}.`,
         payload: stringPayload({
           decision_id: attributes.decision_id ?? '',
           constitution_revision: attributes.constitution_revision ?? '',
@@ -355,7 +356,7 @@ function mapWasmAbstractEvent(
         action,
         title: surfaceActKindLabels['credential.issued'],
         description: surfaceActKindDescriptions['credential.issued'],
-        assertion: `Credential issued by ${compactDidIdentifier(issuer)} to ${compactDidIdentifier(subject)}.`,
+        assertion: `Credential issued by ${compactDidIdentifier(issuer)} for subject ${compactDidIdentifier(subject)}.`,
         payload: stringPayload({
           identifier: attributes.identifier ?? '',
           issuer,
@@ -374,10 +375,11 @@ function mapWasmAbstractEvent(
     if (!abstractAccount) {
       return []
     }
-    const subject = abstractAccountSubject(abstractAccount, chainId)
-    if (!subject) {
+    const authority = abstractAccountSubject(abstractAccount, chainId)
+    if (!authority) {
       return []
     }
+    const credentialId = attributes.identifier ?? ''
 
     return [
       {
@@ -389,9 +391,9 @@ function mapWasmAbstractEvent(
         action,
         title: surfaceActKindLabels['credential.revoked'],
         description: surfaceActKindDescriptions['credential.revoked'],
-        assertion: `Credential revoked by ${subject}.`,
+        assertion: `Credential ${compactDidIdentifier(credentialId)} revoked by ${authority}.`,
         payload: stringPayload({
-          identifier: attributes.identifier ?? '',
+          identifier: credentialId,
           issuer: attributes.issuer ?? '',
           revoked_at: attributes.revoked_at ?? '',
           _contract_address: contractAddress,

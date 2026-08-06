@@ -91,7 +91,7 @@ describe('surface-act-mapper', () => {
       {
         tx: instantiateTx,
         kind: 'identity.created',
-        assertion: `Identity created for ${compactAbstractAccountDid}.`,
+        assertion: `Identity established as ${compactAbstractAccountDid}.`,
       },
       {
         tx: {
@@ -125,7 +125,7 @@ describe('surface-act-mapper', () => {
           ],
         },
         kind: 'governance.instantiated',
-        assertion: `Governance established on ${compactAbstractAccountDid}.`,
+        assertion: `Governance established for ${compactAbstractAccountDid}.`,
       },
       {
         tx: makeExecuteTx('TX-VC-INSTALL', [
@@ -136,7 +136,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: abstractAccountAddress },
         ]),
         kind: 'credential.authority.instantiated',
-        assertion: `Credential authority established on ${compactAbstractAccountDid}.`,
+        assertion: `${compactAbstractAccountDid} established as a credential authority.`,
       },
       {
         tx: makeExecuteTx('TX-REC', [
@@ -148,7 +148,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1govmodule' },
         ]),
         kind: 'governance.decision.recorded',
-        assertion: `Decision recorded by ${compactAbstractAccountDid}.`,
+        assertion: `Verdict recorded by ${compactAbstractAccountDid}.`,
       },
       {
         tx: makeExecuteTx('TX-REV', [
@@ -188,7 +188,7 @@ describe('surface-act-mapper', () => {
           },
         ),
         kind: 'credential.issued',
-        assertion: `Credential issued by ${compactCredentialIssuerDid} to urn:axone:testnet:subject:gh29632273325a1-1.`,
+        assertion: `Credential issued by ${compactCredentialIssuerDid} for subject urn:axone:testnet:subject:gh29632273325a1-1.`,
       },
       {
         tx: makeExecuteTx('TX-ISS-DID', [
@@ -200,7 +200,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1vcmodule' },
         ]),
         kind: 'credential.issued',
-        assertion: `Credential issued by ${compactCredentialIssuerDid} to ${compactCredentialSubjectDid}.`,
+        assertion: `Credential issued by ${compactCredentialIssuerDid} for subject ${compactCredentialSubjectDid}.`,
       },
       {
         tx: makeExecuteTx('TX-REVK', [
@@ -212,7 +212,7 @@ describe('surface-act-mapper', () => {
           { key: '_contract_address', value: 'axone1vcmodule' },
         ]),
         kind: 'credential.revoked',
-        assertion: `Credential revoked by ${compactAbstractAccountDid}.`,
+        assertion: `Credential cred-1 revoked by ${compactAbstractAccountDid}.`,
       },
     ] as const
 
