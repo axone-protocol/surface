@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
+import { shortenHash, shortenIdentifier } from '../lib/shorten'
 import { surfaceActKindCategories, type SurfaceAct } from '../domain/surface-act'
 
 const props = defineProps<{
@@ -21,8 +22,10 @@ const transactionCopyState = ref<'idle' | 'copying' | 'copied'>('idle')
 let copiedTimer: number | undefined
 let isUnmounted = false
 
-const assertionIdentifierPattern = /(did:pkh:…cosmos1[a-z0-9]+…[a-z0-9]{6}|urn:[a-z0-9:-]+)/i
-const technicalIdentifierPattern = /^(did:pkh:…cosmos1[a-z0-9]+…[a-z0-9]{6}|urn:[a-z0-9:-]+)$/i
+const assertionIdentifierPattern =
+  /(did:pkh:…cosmos1[a-z0-9]+…[a-z0-9]{6}|[a-z][a-z\d+.-]*:[^\s.]+(?:\.[^\s.]+)*)/i
+const technicalIdentifierPattern =
+  /^(did:pkh:…cosmos1[a-z0-9]+…[a-z0-9]{6}|[a-z][a-z\d+.-]*:[^\s.]+(?:\.[^\s.]+)*)$/i
 
 const typedAssertionParts = computed(() => {
   let remainingLength = typedLength.value
@@ -40,22 +43,6 @@ const entryParts = computed(() => {
   return match ? { prefix: match[1], suffix: match[2] } : { prefix: entry, suffix: '' }
 })
 const transactionExplorerUrl = computed(() => `${props.explorer}/tx/${props.act.txhash}`)
-
-function shortValue(value: string) {
-  if (value.length <= 24) {
-    return value
-  }
-
-  return `${value.slice(0, 12)}...${value.slice(-6)}`
-}
-
-function shortHash(value: string) {
-  if (value.length <= 17) {
-    return value
-  }
-
-  return `${value.slice(0, 8)}…${value.slice(-8)}`
-}
 
 function compactDate(value: string) {
   const normalized = value.match(
@@ -173,7 +160,7 @@ onBeforeUnmount(() => {
       <div class="surface-act-proof-row surface-act-tx-row">
         <dt>tx</dt>
         <dd class="surface-act-tx">
-          <span class="surface-act-tx-value">{{ shortValue(act.txhash) }}</span>
+          <span class="surface-act-tx-value">{{ shortenHash(act.txhash) }}</span>
           <span class="surface-act-tx-action">
             <button
               v-if="transactionCopyState !== 'copied'"
@@ -213,7 +200,7 @@ onBeforeUnmount(() => {
         <dt>constitution</dt>
         <dd>
           r. {{ act.payload.constitution_revision }} ·
-          {{ shortHash(act.payload.constitution_hash) }}
+          {{ shortenHash(act.payload.constitution_hash) }}
         </dd>
       </div>
       <div
@@ -223,7 +210,7 @@ onBeforeUnmount(() => {
         "
       >
         <dt>credential</dt>
-        <dd>{{ shortValue(act.payload.identifier) }}</dd>
+        <dd>{{ shortenIdentifier(act.payload.identifier) }}</dd>
       </div>
       <div v-if="act.kind === 'governance.decision.recorded' && act.payload.verdict">
         <dt>verdict</dt>

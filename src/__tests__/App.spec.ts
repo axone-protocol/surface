@@ -294,7 +294,7 @@ describe('App', () => {
     await wrapper.get('.top-connect').trigger('click')
     expect(wrapper.get('.wallet-menu .surface-dropdown-heading').text()).toBe('WALLET')
     expect(wrapper.get('.wallet-provider').text()).toBe('Keplr')
-    expect(wrapper.get('.wallet-address').text()).toBe('axone1wall...ddress')
+    expect(wrapper.get('.wallet-address').text()).toBe('axone1wall…ddress')
     const walletAddressLink = wrapper.get<HTMLAnchorElement>('.wallet-address')
     expect(walletAddressLink.attributes('href')).toBe(
       `https://explorer.aknodes.com/AXONE-TESTNET/account/${walletAddress}`,

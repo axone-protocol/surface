@@ -68,7 +68,7 @@ describe('SurfaceActStream', () => {
 
   it('renders embedded DID and URN identifiers in monospace spans', async () => {
     const assertion =
-      'Credential issued by did:pkh:…cosmos1s7u…texh8c for subject urn:axone:testnet:subject:gh29632273325a1-1.'
+      'Credential issued by did:pkh:…cosmos1s7u…texh8c for subject urn:axone:te…23a1-1.'
     const wrapper = mount(SurfaceActLine, {
       props: {
         act: { ...makeAct('TX-DID', 1, 'axone1issuer'), assertion },
@@ -84,7 +84,7 @@ describe('SurfaceActStream', () => {
     const identifiers = wrapper.findAll('.surface-act-identifier')
     expect(identifiers.map((identifier) => identifier.text())).toEqual([
       'did:pkh:…cosmos1s7u…texh8c',
-      'urn:axone:testnet:subject:gh29632273325a1-1',
+      'urn:axone:te…23a1-1',
     ])
     expect(wrapper.get('.surface-act-inscription').text()).toBe(assertion)
   })
@@ -120,11 +120,7 @@ describe('SurfaceActStream', () => {
             verdict: 'gov:permitted',
           },
         },
-        expected: [
-          'decisionn° 1',
-          'constitution r. 3 · 8C11A47D…B2903E12',
-          'verdictgov:permitted',
-        ],
+        expected: ['decisionn° 1', 'constitution r. 3 · 8C11A47D…B2903E12', 'verdictgov:permitted'],
       },
       {
         act: {
@@ -132,7 +128,7 @@ describe('SurfaceActStream', () => {
           kind: 'credential.issued',
           payload: { identifier: credentialId },
         },
-        expected: ['credentialCRED-1234567...ABCDEF'],
+        expected: ['credentialCRED-1234567…ABCDEF'],
       },
       {
         act: {
@@ -140,7 +136,7 @@ describe('SurfaceActStream', () => {
           kind: 'credential.revoked',
           payload: { identifier: credentialId },
         },
-        expected: ['credentialCRED-1234567...ABCDEF'],
+        expected: ['credentialCRED-1234567…ABCDEF'],
       },
     ]
 
@@ -178,7 +174,7 @@ describe('SurfaceActStream', () => {
     })
 
     const transactionValue = wrapper.get('.surface-act-tx-value')
-    expect(transactionValue.text()).toBe('34BB1E16A405...8A931F')
+    expect(transactionValue.text()).toBe('34BB1E16…EF8A931F')
     expect(transactionValue.element.tagName).toBe('SPAN')
     expect(transactionValue.attributes('href')).toBeUndefined()
     const explorerButton = wrapper.get('.surface-act-explorer')

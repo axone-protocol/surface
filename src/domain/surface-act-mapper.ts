@@ -7,15 +7,17 @@ import {
   type CosmosMessage,
   type CosmosTxResponse,
 } from '../infra/axone-event-extractor'
+import { shortenDid, shortenUri } from '../lib/shorten'
 import {
   surfaceActKindDescriptions,
   surfaceActKindLabels,
   type SurfaceAct,
   type SurfaceActKind,
 } from './surface-act'
-import { compactCanonicalDid, toCanonicalDid } from './abstract-account'
+import { toCanonicalDid } from './abstract-account'
 
 const instantiateAction = '/cosmwasm.wasm.v1.MsgInstantiateContract2'
+const uriSchemePattern = /^[a-z][a-z\d+.-]*:/i
 const executeAction = '/cosmwasm.wasm.v1.MsgExecuteContract'
 
 function toNumber(value: string | undefined, fallback = 0) {
@@ -63,14 +65,18 @@ function stringPayload(values: Record<string, string | undefined>): Record<strin
 
 function abstractAccountSubject(address: string, chainId: string) {
   try {
-    return compactCanonicalDid(toCanonicalDid(address, chainId))
+    return shortenDid(toCanonicalDid(address, chainId))
   } catch {
     return undefined
   }
 }
 
-function compactDidIdentifier(identifier: string) {
-  return identifier.startsWith('did:pkh:') ? compactCanonicalDid(identifier) : identifier
+function shortenAssertionIdentifier(identifier: string) {
+  if (identifier.startsWith('did:')) {
+    return shortenDid(identifier)
+  }
+
+  return uriSchemePattern.test(identifier) ? shortenUri(identifier) : identifier
 }
 
 function installedModuleIds(value: string | undefined) {
@@ -366,7 +372,7 @@ function mapWasmAbstractEvent(
         action,
         title: surfaceActKindLabels['credential.issued'],
         description: surfaceActKindDescriptions['credential.issued'],
-        assertion: `Credential issued by ${compactDidIdentifier(issuer)} for subject ${compactDidIdentifier(subject)}.`,
+        assertion: `Credential issued by ${shortenAssertionIdentifier(issuer)} for subject ${shortenAssertionIdentifier(subject)}.`,
         payload: stringPayload({
           identifier: credentialId,
           issuer,
@@ -401,7 +407,7 @@ function mapWasmAbstractEvent(
         action,
         title: surfaceActKindLabels['credential.revoked'],
         description: surfaceActKindDescriptions['credential.revoked'],
-        assertion: `Credential ${compactDidIdentifier(credentialId)} revoked by ${authority}.`,
+        assertion: `Credential ${shortenAssertionIdentifier(credentialId)} revoked by ${authority}.`,
         payload: stringPayload({
           identifier: credentialId,
           issuer: attributes.issuer ?? '',

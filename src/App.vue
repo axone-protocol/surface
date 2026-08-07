@@ -5,6 +5,7 @@ import { AnimatePresence, motion, MotionConfig } from 'motion-v'
 
 import SurfaceActStream from './components/SurfaceActStream.vue'
 import SurfaceDropdown from './components/SurfaceDropdown.vue'
+import { shortenWalletAddress } from './lib/shorten'
 import { useSurfaceActs } from './composables/useSurfaceActs'
 import { useWalletConnection } from './composables/useWalletConnection'
 import type { WalletProviderId } from './domain/wallet-connection'
@@ -106,10 +107,6 @@ async function connectWallet(provider: WalletProviderId) {
   if (walletConnection.value) {
     walletMenuOpen.value = false
   }
-}
-
-function compactWalletAddress(address: string): string {
-  return address.length <= 16 ? address : `${address.slice(0, 10)}...${address.slice(-6)}`
 }
 
 function clearWalletAddressCopiedTimer() {
@@ -297,7 +294,7 @@ onBeforeUnmount(() => {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      {{ compactWalletAddress(walletConnection.address) }}
+                      {{ shortenWalletAddress(walletConnection.address) }}
                     </a>
                     <span class="wallet-address-action">
                       <button

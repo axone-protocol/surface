@@ -185,7 +185,7 @@ describe('surface-act-mapper', () => {
               module: {
                 issue_credential: {
                   credential: btoa(
-                    `<urn:credential> <https://www.w3.org/2018/credentials#issuer> <${credentialIssuerDid}> .\n<urn:credential> <https://www.w3.org/2018/credentials#credentialSubject> <urn:axone:testnet:subject:gh29632273325a1-1> .`,
+                    `<urn:credential> <https://www.w3.org/2018/credentials#issuer> <${credentialIssuerDid}> .\n<urn:credential> <https://www.w3.org/2018/credentials#credentialSubject> <urn:axone:testnet:subject:gh31175346323a1-1> .`,
                   ),
                 },
               },
@@ -193,7 +193,7 @@ describe('surface-act-mapper', () => {
           },
         ),
         kind: 'credential.issued',
-        assertion: `Credential issued by ${compactCredentialIssuerDid} for subject urn:axone:testnet:subject:gh29632273325a1-1.`,
+        assertion: `Credential issued by ${compactCredentialIssuerDid} for subject urn:axone:te…23a1-1.`,
       },
       {
         tx: makeExecuteTx('TX-ISS-DID', [

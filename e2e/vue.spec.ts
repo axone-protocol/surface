@@ -48,7 +48,7 @@ test('connects Keplr without discovering identities', async ({ page }) => {
   await connectTrigger.click()
   await expect(page.locator('.wallet-register-head')).toHaveText('WALLET')
   await expect(page.locator('.wallet-provider')).toHaveText('Keplr')
-  await expect(page.locator('.wallet-address')).toHaveText('axone1wall...ddress')
+  await expect(page.locator('.wallet-address')).toHaveText('axone1wall…ddress')
   await expect(page.locator('.wallet-address-copy')).toHaveAttribute(
     'title',
     'axone1walletprivateaddress',
