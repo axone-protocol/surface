@@ -49,6 +49,14 @@ function shortValue(value: string) {
   return `${value.slice(0, 12)}...${value.slice(-6)}`
 }
 
+function shortHash(value: string) {
+  if (value.length <= 17) {
+    return value
+  }
+
+  return `${value.slice(0, 8)}…${value.slice(-8)}`
+}
+
 function compactDate(value: string) {
   const normalized = value.match(
     /^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})(?::\d{2}(?:\.\d{3})?)?(?:Z| UTC)?$/,
@@ -194,8 +202,28 @@ onBeforeUnmount(() => {
         </dd>
       </div>
       <div>
-        <dt>time</dt>
+        <dt>recorded</dt>
         <dd>{{ compactDate(act.timestamp) }}</dd>
+      </div>
+      <div v-if="act.kind === 'governance.decision.recorded' && act.payload.decision_id">
+        <dt>decision</dt>
+        <dd>n° {{ act.payload.decision_id }}</dd>
+      </div>
+      <div v-if="act.payload.constitution_revision && act.payload.constitution_hash">
+        <dt>constitution</dt>
+        <dd>
+          r. {{ act.payload.constitution_revision }} ·
+          {{ shortHash(act.payload.constitution_hash) }}
+        </dd>
+      </div>
+      <div
+        v-if="
+          (act.kind === 'credential.issued' || act.kind === 'credential.revoked') &&
+          act.payload.identifier
+        "
+      >
+        <dt>credential</dt>
+        <dd>{{ shortValue(act.payload.identifier) }}</dd>
       </div>
       <div v-if="act.kind === 'governance.decision.recorded' && act.payload.verdict">
         <dt>verdict</dt>

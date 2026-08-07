@@ -73,7 +73,6 @@ function compactDidIdentifier(identifier: string) {
   return identifier.startsWith('did:pkh:') ? compactCanonicalDid(identifier) : identifier
 }
 
-
 function installedModuleIds(value: string | undefined) {
   if (!value) {
     return []
@@ -236,6 +235,14 @@ function mapWasmAbstractEvent(
     }
 
     const installedModules = installedModuleIds(attributes.installed_modules)
+    const governanceAttributes = eventAttributes(
+      extractWasmAbstractEvents(tx).find(
+        (candidate, candidateIndex) =>
+          messageIndexForEvent(candidateIndex, tx) === messageIndex &&
+          eventAttribute(candidate, 'contract') === 'axone:axone-gov' &&
+          eventAttribute(candidate, 'action') === 'instantiate',
+      ),
+    )
     const moduleKinds = [
       ['axone:axone-gov:', 'governance.instantiated'],
       ['axone:axone-vc:', 'credential.authority.instantiated'],
@@ -260,6 +267,8 @@ function mapWasmAbstractEvent(
           assertion,
           payload: stringPayload({
             installed_modules: attributes.installed_modules ?? '',
+            constitution_revision: governanceAttributes.constitution_revision ?? '',
+            constitution_hash: governanceAttributes.constitution_hash ?? '',
             _contract_address: contractAddress,
             msg_index: String(messageIndex),
           }),
@@ -342,6 +351,7 @@ function mapWasmAbstractEvent(
     const parsedSubjects = credentialSubjects(message)
     const issuer = attributes.issuer || parsedSubjects.issuer
     const subject = attributes.subject || parsedSubjects.subject
+    const credentialId = attributes.credential_id || attributes.identifier || ''
     if (!issuer || !subject) {
       return []
     }
@@ -358,7 +368,7 @@ function mapWasmAbstractEvent(
         description: surfaceActKindDescriptions['credential.issued'],
         assertion: `Credential issued by ${compactDidIdentifier(issuer)} for subject ${compactDidIdentifier(subject)}.`,
         payload: stringPayload({
-          identifier: attributes.identifier ?? '',
+          identifier: credentialId,
           issuer,
           subject,
           credential_type: attributes.credential_type ?? '',
@@ -379,7 +389,7 @@ function mapWasmAbstractEvent(
     if (!authority) {
       return []
     }
-    const credentialId = attributes.identifier ?? ''
+    const credentialId = attributes.credential_id || attributes.identifier || ''
 
     return [
       {

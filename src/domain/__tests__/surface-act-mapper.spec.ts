@@ -118,6 +118,11 @@ describe('surface-act-mapper', () => {
               attributes: [
                 { key: 'contract', value: 'axone:axone-gov' },
                 { key: 'action', value: 'instantiate' },
+                { key: 'constitution_revision', value: '1' },
+                {
+                  key: 'constitution_hash',
+                  value: '8C11A47D0123456789ABCDEF0123456789ABCDEF0123456789ABCDEFB2903E12',
+                },
                 { key: 'msg_index', value: '0' },
                 { key: '_contract_address', value: 'axone1govmodule' },
               ],
@@ -168,7 +173,7 @@ describe('surface-act-mapper', () => {
           [
             { key: 'contract', value: 'axone:axone-vc' },
             { key: 'action', value: 'issue_credential' },
-            { key: 'identifier', value: 'cred-1' },
+            { key: 'credential_id', value: 'cred-1' },
             { key: 'credential_type', value: 'membership' },
             { key: 'valid_from', value: '2026-07-09T12:00:00Z' },
             { key: 'valid_until', value: '2026-12-31T23:59:59Z' },
@@ -206,7 +211,7 @@ describe('surface-act-mapper', () => {
         tx: makeExecuteTx('TX-REVK', [
           { key: 'contract', value: 'axone:axone-vc' },
           { key: 'action', value: 'revoke_credential' },
-          { key: 'identifier', value: 'cred-1' },
+          { key: 'credential_id', value: 'cred-1' },
           { key: 'revoked_at', value: '2026-07-09T13:00:00Z' },
           { key: 'msg_index', value: '0' },
           { key: '_contract_address', value: 'axone1vcmodule' },
@@ -224,11 +229,31 @@ describe('surface-act-mapper', () => {
       expect(acts[0]?.assertion).toBe(testCase.assertion)
     }
 
+    const governance = mapTxToSurfaceActs(cases[1].tx as never, dendriteChainId, administrators)[0]!
+    expect(governance.payload).toMatchObject({
+      constitution_revision: '1',
+      constitution_hash: '8C11A47D0123456789ABCDEF0123456789ABCDEF0123456789ABCDEFB2903E12',
+    })
+
     const verdict = mapTxToSurfaceActs(cases[3].tx as never, dendriteChainId, administrators)[0]!
     expect(surfaceActKindCategories[verdict.kind]).toBe('VERDICT')
     expect(verdict.payload.verdict).toBe('gov:permitted')
     expect(verdict.assertion).not.toContain('record_decision')
     expect(verdict.assertion).not.toContain('gov:permitted')
+
+    const issuedCredential = mapTxToSurfaceActs(
+      cases[5].tx as never,
+      dendriteChainId,
+      administrators,
+    )[0]!
+    expect(issuedCredential.payload.identifier).toBe('cred-1')
+
+    const revokedCredential = mapTxToSurfaceActs(
+      cases[7].tx as never,
+      dendriteChainId,
+      administrators,
+    )[0]!
+    expect(revokedCredential.payload.identifier).toBe('cred-1')
   })
 
   it('rejects unrelated contract instantiation and module events without an AA owner', () => {

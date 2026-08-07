@@ -1,6 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { SurfaceAct } from '../../domain/surface-act'
 
 import SurfaceActLine from '../SurfaceActLine.vue'
 import SurfaceActStream from '../SurfaceActStream.vue'
@@ -58,7 +59,7 @@ describe('SurfaceActStream', () => {
     )
     expect(records[0]!.find('.surface-act-entry').text()).toContain('1.0.0')
     expect(records[0]!.find('.surface-act-proof').text()).toContain('txTX-1')
-    expect(records[0]!.find('.surface-act-proof').text()).toContain('time2026-07-09 12:01 UTC')
+    expect(records[0]!.find('.surface-act-proof').text()).toContain('recorded2026-07-09 12:01 UTC')
     expect(wrapper.text()).not.toContain('HEIGHT')
     expect(wrapper.text()).not.toContain('MSG')
     expect(wrapper.find('.surface-act-column-head').text()).toBe('ENTRYSTATEMENTEVIDENCE')
@@ -86,6 +87,79 @@ describe('SurfaceActStream', () => {
       'urn:axone:testnet:subject:gh29632273325a1-1',
     ])
     expect(wrapper.get('.surface-act-inscription').text()).toBe(assertion)
+  })
+
+  it('renders governance, verdict, and credential evidence', () => {
+    const constitutionHash = '8C11A47D0123456789ABCDEF0123456789ABCDEF0123456789ABCDEFB2903E12'
+    const credentialId = 'CRED-12345678901234567890-ABCDEF'
+    const evidenceActs: Array<{ act: SurfaceAct; expected: string[] }> = [
+      {
+        act: {
+          ...makeAct('TX-GOV-INST', 1, 'axone1authority'),
+          kind: 'governance.instantiated',
+          payload: { constitution_revision: '1', constitution_hash: constitutionHash },
+        },
+        expected: ['constitution r. 1 · 8C11A47D…B2903E12'],
+      },
+      {
+        act: {
+          ...makeAct('TX-GOV-REV', 1, 'axone1authority'),
+          kind: 'governance.constitution.revised',
+          payload: { constitution_revision: '2', constitution_hash: constitutionHash },
+        },
+        expected: ['constitution r. 2 · 8C11A47D…B2903E12'],
+      },
+      {
+        act: {
+          ...makeAct('TX-VERDICT', 1, 'axone1authority'),
+          kind: 'governance.decision.recorded',
+          payload: {
+            decision_id: '1',
+            constitution_revision: '3',
+            constitution_hash: constitutionHash,
+            verdict: 'gov:permitted',
+          },
+        },
+        expected: [
+          'decisionn° 1',
+          'constitution r. 3 · 8C11A47D…B2903E12',
+          'verdictgov:permitted',
+        ],
+      },
+      {
+        act: {
+          ...makeAct('TX-CRED-ISS', 1, 'axone1authority'),
+          kind: 'credential.issued',
+          payload: { identifier: credentialId },
+        },
+        expected: ['credentialCRED-1234567...ABCDEF'],
+      },
+      {
+        act: {
+          ...makeAct('TX-CRED-REVK', 1, 'axone1authority'),
+          kind: 'credential.revoked',
+          payload: { identifier: credentialId },
+        },
+        expected: ['credentialCRED-1234567...ABCDEF'],
+      },
+    ]
+
+    for (const { act, expected } of evidenceActs) {
+      const wrapper = mount(SurfaceActLine, {
+        props: {
+          act,
+          explorer: testExplorer,
+          reducedMotion: true,
+          typingActive: false,
+          cursorVisible: false,
+        },
+      })
+      const evidence = wrapper.get('.surface-act-proof').text()
+
+      for (const value of expected) {
+        expect(evidence).toContain(value)
+      }
+    }
   })
 
   it('keeps the transaction text noninteractive, links through the explorer button, and restores copy', async () => {
