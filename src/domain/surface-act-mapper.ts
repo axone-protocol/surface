@@ -14,6 +14,7 @@ import {
   type SurfaceAct,
   type SurfaceActKind,
 } from './surface-act'
+import type { SurfaceAssertionPart, SurfaceReference } from './surface-reference'
 import { toCanonicalDid } from './abstract-account'
 
 const instantiateAction = '/cosmwasm.wasm.v1.MsgInstantiateContract2'
@@ -63,20 +64,32 @@ function stringPayload(values: Record<string, string | undefined>): Record<strin
   ) as Record<string, string>
 }
 
+function identifierReference(
+  identifier: string,
+  designation: string,
+): SurfaceReference | undefined {
+  if (identifier.startsWith('did:')) {
+    return { designation, value: identifier, display: shortenDid(identifier) }
+  }
+
+  if (uriSchemePattern.test(identifier)) {
+    return { designation, value: identifier, display: shortenUri(identifier) }
+  }
+
+  return undefined
+}
+
 function abstractAccountSubject(address: string, chainId: string) {
   try {
-    return shortenDid(toCanonicalDid(address, chainId))
+    return identifierReference(toCanonicalDid(address, chainId), 'Identity')
   } catch {
     return undefined
   }
 }
 
-function shortenAssertionIdentifier(identifier: string) {
-  if (identifier.startsWith('did:')) {
-    return shortenDid(identifier)
-  }
-
-  return uriSchemePattern.test(identifier) ? shortenUri(identifier) : identifier
+function assertionIdentifier(identifier: string, designation: string): SurfaceAssertionPart {
+  const reference = identifierReference(identifier, designation)
+  return reference ? { type: 'reference', reference } : { type: 'text', value: identifier }
 }
 
 function installedModuleIds(value: string | undefined) {
@@ -166,7 +179,7 @@ function makeActBase(
     timestamp: txTimestamp(tx),
     title: surfaceActKindLabels[kind],
     description: surfaceActKindDescriptions[kind],
-    assertion: surfaceActKindDescriptions[kind],
+    assertion: [{ type: 'text', value: surfaceActKindDescriptions[kind] }],
     payload: {},
   } satisfies SurfaceAct
 }
@@ -203,7 +216,11 @@ function fromInstantiate(
       contractAddress,
       action: 'instantiate',
       description: surfaceActKindDescriptions['identity.created'],
-      assertion: `Identity established as ${subject}.`,
+      assertion: [
+        { type: 'text', value: 'Identity established as ' },
+        { type: 'reference', reference: subject },
+        { type: 'text', value: '.' },
+      ],
       payload: stringPayload({
         _contract_address: contractAddress,
         code_id: String(message.code_id ?? message['codeId'] ?? ''),
@@ -259,10 +276,17 @@ function mapWasmAbstractEvent(
         return []
       }
 
-      const assertion =
+      const assertion: SurfaceAssertionPart[] =
         kind === 'governance.instantiated'
-          ? `Governance established for ${subject}.`
-          : `${subject} established as a credential authority.`
+          ? [
+              { type: 'text', value: 'Governance established for ' },
+              { type: 'reference' as const, reference: subject },
+              { type: 'text', value: '.' },
+            ]
+          : [
+              { type: 'reference' as const, reference: subject },
+              { type: 'text', value: ' established as a credential authority.' },
+            ]
       return [
         {
           ...makeActBase(tx, messageIndex, actIndex + moduleIndex, kind),
@@ -305,7 +329,11 @@ function mapWasmAbstractEvent(
         action,
         title: surfaceActKindLabels['governance.decision.recorded'],
         description: surfaceActKindDescriptions['governance.decision.recorded'],
-        assertion: `Verdict recorded by ${subject}.`,
+        assertion: [
+          { type: 'text', value: 'Verdict recorded by ' },
+          { type: 'reference', reference: subject },
+          { type: 'text', value: '.' },
+        ],
         payload: stringPayload({
           decision_id: attributes.decision_id ?? '',
           constitution_revision: attributes.constitution_revision ?? '',
@@ -341,7 +369,11 @@ function mapWasmAbstractEvent(
         action,
         title: surfaceActKindLabels['governance.constitution.revised'],
         description: surfaceActKindDescriptions['governance.constitution.revised'],
-        assertion: `Governance amended on ${subject}.`,
+        assertion: [
+          { type: 'text', value: 'Governance amended on ' },
+          { type: 'reference', reference: subject },
+          { type: 'text', value: '.' },
+        ],
         payload: stringPayload({
           constitution_revision: attributes.constitution_revision ?? '',
           constitution_hash: attributes.constitution_hash ?? '',
@@ -372,7 +404,13 @@ function mapWasmAbstractEvent(
         action,
         title: surfaceActKindLabels['credential.issued'],
         description: surfaceActKindDescriptions['credential.issued'],
-        assertion: `Credential issued by ${shortenAssertionIdentifier(issuer)} for subject ${shortenAssertionIdentifier(subject)}.`,
+        assertion: [
+          { type: 'text', value: 'Credential issued by ' },
+          assertionIdentifier(issuer, 'Credential issuer'),
+          { type: 'text', value: ' for subject ' },
+          assertionIdentifier(subject, 'Credential subject'),
+          { type: 'text', value: '.' },
+        ],
         payload: stringPayload({
           identifier: credentialId,
           issuer,
@@ -407,7 +445,13 @@ function mapWasmAbstractEvent(
         action,
         title: surfaceActKindLabels['credential.revoked'],
         description: surfaceActKindDescriptions['credential.revoked'],
-        assertion: `Credential ${shortenAssertionIdentifier(credentialId)} revoked by ${authority}.`,
+        assertion: [
+          { type: 'text', value: 'Credential ' },
+          assertionIdentifier(credentialId, 'Credential identifier'),
+          { type: 'text', value: ' revoked by ' },
+          { type: 'reference', reference: authority },
+          { type: 'text', value: '.' },
+        ],
         payload: stringPayload({
           identifier: credentialId,
           issuer: attributes.issuer ?? '',

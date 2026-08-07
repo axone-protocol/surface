@@ -8,6 +8,7 @@ import {
   sortSurfaceActs,
 } from '../surface-act-mapper'
 import { surfaceActKindCategories } from '../surface-act'
+import { toCanonicalDid } from '../abstract-account'
 
 const abstractAccountAddress = 'axone1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqhg7gd5'
 const compactAbstractAccountDid = 'did:pkh:…cosmos1lfc…pk2un3'
@@ -226,7 +227,11 @@ describe('surface-act-mapper', () => {
 
       expect(acts).toHaveLength(1)
       expect(acts[0]?.kind).toBe(testCase.kind)
-      expect(acts[0]?.assertion).toBe(testCase.assertion)
+      expect(
+        acts[0]?.assertion
+          .map((part) => (part.type === 'text' ? part.value : part.reference.display))
+          .join(''),
+      ).toBe(testCase.assertion)
     }
 
     const governance = mapTxToSurfaceActs(cases[1].tx as never, dendriteChainId, administrators)[0]!
@@ -238,8 +243,11 @@ describe('surface-act-mapper', () => {
     const verdict = mapTxToSurfaceActs(cases[3].tx as never, dendriteChainId, administrators)[0]!
     expect(surfaceActKindCategories[verdict.kind]).toBe('VERDICT')
     expect(verdict.payload.verdict).toBe('gov:permitted')
-    expect(verdict.assertion).not.toContain('record_decision')
-    expect(verdict.assertion).not.toContain('gov:permitted')
+    const verdictText = verdict.assertion
+      .map((part) => (part.type === 'text' ? part.value : part.reference.display))
+      .join('')
+    expect(verdictText).not.toContain('record_decision')
+    expect(verdictText).not.toContain('gov:permitted')
 
     const issuedCredential = mapTxToSurfaceActs(
       cases[5].tx as never,
@@ -247,6 +255,32 @@ describe('surface-act-mapper', () => {
       administrators,
     )[0]!
     expect(issuedCredential.payload.identifier).toBe('cred-1')
+    expect(issuedCredential.assertion).toContainEqual({
+      type: 'reference',
+      reference: {
+        designation: 'Credential issuer',
+        value: credentialIssuerDid,
+        display: compactCredentialIssuerDid,
+      },
+    })
+    expect(issuedCredential.assertion).toContainEqual({
+      type: 'reference',
+      reference: {
+        designation: 'Credential subject',
+        value: 'urn:axone:testnet:subject:gh31175346323a1-1',
+        display: 'urn:axone:te…23a1-1',
+      },
+    })
+    expect(
+      mapTxToSurfaceActs(cases[0].tx as never, dendriteChainId, administrators)[0]?.assertion,
+    ).toContainEqual({
+      type: 'reference',
+      reference: {
+        designation: 'Identity',
+        value: toCanonicalDid(abstractAccountAddress, dendriteChainId),
+        display: compactAbstractAccountDid,
+      },
+    })
 
     const revokedCredential = mapTxToSurfaceActs(
       cases[7].tx as never,
@@ -395,7 +429,7 @@ describe('surface-act-mapper', () => {
         timestamp: '2026-07-09T12:00:00Z',
         title: 'IDENTITY CREATED',
         description: '',
-        assertion: '',
+        assertion: [{ type: 'text', value: '' }],
         payload: {},
       },
       {
@@ -408,7 +442,7 @@ describe('surface-act-mapper', () => {
         timestamp: '2026-07-09T12:00:00Z',
         title: 'IDENTITY CREATED',
         description: '',
-        assertion: '',
+        assertion: [{ type: 'text', value: '' }],
         payload: {},
       },
       {
@@ -421,7 +455,7 @@ describe('surface-act-mapper', () => {
         timestamp: '2026-07-09T12:00:00Z',
         title: 'IDENTITY CREATED',
         description: '',
-        assertion: '',
+        assertion: [{ type: 'text', value: '' }],
         payload: {},
       },
     ])

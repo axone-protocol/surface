@@ -272,6 +272,11 @@ describe('App', () => {
         }),
     )
     const walletAddress = 'axone1walletprivateaddress'
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: createMatchMediaMock(false),
+    })
 
     const wrapper = mountApp()
     await flushPromises()
@@ -294,47 +299,40 @@ describe('App', () => {
     await wrapper.get('.top-connect').trigger('click')
     expect(wrapper.get('.wallet-menu .surface-dropdown-heading').text()).toBe('WALLET')
     expect(wrapper.get('.wallet-provider').text()).toBe('Keplr')
-    expect(wrapper.get('.wallet-address').text()).toBe('axone1wall…ddress')
-    const walletAddressLink = wrapper.get<HTMLAnchorElement>('.wallet-address')
-    expect(walletAddressLink.attributes('href')).toBe(
-      `https://explorer.aknodes.com/AXONE-TESTNET/account/${walletAddress}`,
-    )
-    expect(walletAddressLink.attributes('title')).toBe(walletAddress)
-    expect(walletAddressLink.attributes('aria-label')).toBe(
-      `View wallet address ${walletAddress} in explorer`,
-    )
-    expect(walletAddressLink.attributes('target')).toBe('_blank')
-    expect(walletAddressLink.attributes('rel')).toBe('noopener noreferrer')
+    const walletTrigger = wrapper.get('.wallet-address-row .surface-reference-trigger')
+    expect(walletTrigger.text()).toBe('axone1wall…ddress')
+    expect(walletTrigger.attributes('aria-label')).toBe(`Inspect Wallet address: ${walletAddress}`)
     expect(wrapper.find('.wallet-menu .surface-dropdown-footer .wallet-disconnect').exists()).toBe(
       true,
     )
-    const walletAddressCopy = wrapper.get('.wallet-address-copy')
-    expect(walletAddressCopy.find('svg').exists()).toBe(true)
-    expect(walletAddressCopy.attributes('title')).toBe(walletAddress)
-    expect(walletAddressCopy.attributes('aria-label')).toBe(`Copy wallet address: ${walletAddress}`)
+
+    await walletTrigger.trigger('click')
+    const walletDialog = wrapper.get('[role="dialog"]')
+    expect(walletDialog.text()).toContain(walletAddress)
+    const walletExplorerLink = walletDialog.get('a')
+    expect(walletExplorerLink.text()).toBe('OPEN IN EXPLORER')
+    expect(walletExplorerLink.attributes('href')).toBe(
+      `https://explorer.aknodes.com/AXONE-TESTNET/account/${walletAddress}`,
+    )
+    expect(walletExplorerLink.attributes('target')).toBe('_blank')
+    expect(walletExplorerLink.attributes('rel')).toBe('noopener noreferrer')
 
     vi.useFakeTimers()
     try {
-      await walletAddressCopy.trigger('click')
+      const copyButton = walletDialog.get('button.surface-reference-action')
+      await copyButton.trigger('click')
       await Promise.resolve()
       await wrapper.vm.$nextTick()
       expect(writeClipboard).toHaveBeenCalledWith(walletAddress)
-      expect(wrapper.find('.wallet-address-copy').exists()).toBe(false)
-      expect(wrapper.get('.wallet-address-copied').attributes('role')).toBe('status')
-      expect(wrapper.get('.wallet-address-copied-icon').text()).toBe('✓')
-      expect(wrapper.get('.wallet-address-copied-label').text()).toBe('Copied')
-      expect(wrapper.get('.sr-only[role="status"]').text()).toContain('Wallet address copied.')
+      expect(copyButton.text()).toBe('Copied')
 
       vi.advanceTimersByTime(1000)
       await wrapper.vm.$nextTick()
-
       writeClipboard.mockRejectedValueOnce(new Error('Clipboard unavailable'))
-      await wrapper.get('.wallet-address-copy').trigger('click')
+      await copyButton.trigger('click')
       await Promise.resolve()
       await wrapper.vm.$nextTick()
-      expect(wrapper.get('.sr-only[role="status"]').text()).toContain(
-        'Could not copy wallet address.',
-      )
+      expect(copyButton.text()).toBe('Copy')
       expect(wrapper.find('#wallet-menu').exists()).toBe(true)
     } finally {
       vi.useRealTimers()

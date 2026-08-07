@@ -313,6 +313,24 @@
     text-align: left;
   }
 
+  .wallet-disconnect {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 8px 12px;
+    color: var(--color-surface-code);
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.656rem;
+    letter-spacing: 0.1em;
+    line-height: 1.4;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
   .network-option-name {
     font-size: 0.86rem;
     line-height: 1.2;
@@ -342,10 +360,15 @@
     color: var(--color-surface-gold);
     background: var(--color-surface-gold-soft);
   }
-
-  .network-option.is-disabled {
-    cursor: not-allowed;
-    opacity: 0.56;
+  .network-option:hover:not(:disabled),
+  .network-option:focus-visible:not(:disabled),
+  .wallet-option:hover:not(:disabled),
+  .wallet-option:focus-visible:not(:disabled),
+  .wallet-disconnect:hover,
+  .wallet-disconnect:focus-visible {
+    outline: none;
+    color: var(--color-surface-gold);
+    background: var(--color-surface-gold-soft);
   }
 
   .network-option.is-disabled .network-option-state {
@@ -358,15 +381,6 @@
 
   .network-option.is-disabled .network-option-soon {
     color: var(--color-surface-gold-disabled);
-  }
-
-  .network-option:hover:not(:disabled),
-  .network-option:focus-visible:not(:disabled),
-  .wallet-option:hover:not(:disabled),
-  .wallet-option:focus-visible:not(:disabled) {
-    outline: none;
-    color: var(--color-surface-gold);
-    background: var(--color-surface-gold-soft);
   }
 
   .top-connect:hover:not(:disabled),
@@ -403,6 +417,7 @@
     gap: 0;
     border-top: 1px solid var(--color-surface-line);
   }
+
   .wallet-register-list .wallet-option {
     display: grid;
     grid-column: 1 / -1;
@@ -435,6 +450,13 @@
     font-family: var(--font-mono);
     font-size: 0.62rem;
     line-height: 1.25;
+  }
+
+  .wallet-register-list .wallet-option:hover:not(:disabled) .wallet-option-name,
+  .wallet-register-list .wallet-option:focus-visible:not(:disabled) .wallet-option-name,
+  .wallet-register-list .wallet-option:hover:not(:disabled) .wallet-option-status,
+  .wallet-register-list .wallet-option:focus-visible:not(:disabled) .wallet-option-status {
+    color: var(--color-surface-gold);
   }
 
   .wallet-register-list .wallet-option.is-disabled {
@@ -492,92 +514,294 @@
 
   .wallet-address-row {
     display: flex;
-    gap: 8px;
-    align-items: center;
     min-width: 0;
-  }
-
-  .wallet-address {
-    position: relative;
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow-wrap: anywhere;
     color: var(--color-surface-code);
     font-family: var(--font-mono);
     font-size: 0.7rem;
     line-height: 1.35;
-    text-decoration: underline dotted currentColor;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
-    white-space: nowrap;
   }
 
-  .wallet-address:focus-visible {
+  .surface-reference {
+    display: inline;
+  }
+
+  .surface-reference-trigger {
+    position: relative;
+    display: inline;
+    padding: 0;
+    color: var(--color-surface-code);
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    font: inherit;
+    letter-spacing: 0.02em;
+    line-height: inherit;
+    isolation: isolate;
+  }
+
+  .surface-reference-trigger-text {
+    position: relative;
+    z-index: 1;
+  }
+
+  .surface-reference-trigger::before {
+    position: absolute;
+    z-index: 0;
+    inset: -2px -8px;
+    content: '';
+    background: transparent;
+    border: 1px dashed var(--color-surface-line-strong);
+    transition:
+      border-color 120ms ease,
+      background 120ms ease;
+  }
+
+  .surface-reference-trigger:hover {
+    color: var(--color-surface-text);
+  }
+
+  .surface-reference-trigger:hover::before {
+    background: rgba(240, 234, 220, 0.04);
+    border-color: var(--color-surface-dim);
+  }
+
+  .surface-reference-trigger[aria-expanded='true'] {
+    color: var(--color-surface-text);
+  }
+
+  .surface-reference-trigger[aria-expanded='true']::before {
+    background: rgba(240, 234, 220, 0.08);
+    border-style: solid;
+    border-color: var(--color-surface-dim);
+  }
+
+  .surface-act-inscription .surface-reference-trigger::before {
+    inset-inline: -5px;
+  }
+
+  .surface-reference-trigger:focus-visible,
+  .surface-reference-action:focus-visible,
+  .surface-reference-close:focus-visible {
     outline: 1px dotted currentColor;
     outline-offset: 3px;
   }
 
-  .wallet-address-action {
-    display: inline-flex;
-    flex: 0 0 16px;
-    width: 16px;
-    height: 16px;
+  .surface-reference-panel,
+  .surface-reference-sheet {
+    z-index: 20;
+    display: grid;
+    gap: 0;
+    width: min(380px, calc(100vw - 24px));
+    padding: 0;
+    color: var(--color-surface-text);
+    background: rgba(20, 20, 18, 0.98);
+    border: 0;
+    border-block: 2px solid var(--color-surface-line-strong);
+    border-radius: 0;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
   }
 
-  .wallet-address-copy {
-    display: inline-flex;
+  .surface-reference-panel {
+    position: fixed;
+    overflow-y: auto;
+    transform-origin: top left;
+  }
+
+  .surface-reference-panel--above {
+    transform-origin: bottom left;
+  }
+
+  .surface-reference-header {
+    display: flex;
+    gap: 12px;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    min-width: 0;
+    padding: 10px 17px 8px;
+  }
+
+  .surface-reference-label {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    color: var(--color-surface-muted);
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .surface-reference-verification {
+    display: inline-flex;
+    flex: none;
+    gap: 6px;
+    align-items: center;
+    margin: 0;
+    color: var(--color-surface-live);
+    font-family: var(--font-mono);
+    font-size: 0.594rem;
+    letter-spacing: 0.1em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .surface-reference-verification svg {
     width: 16px;
     height: 16px;
-    padding: 0;
-    color: rgba(240, 234, 220, 0.36);
-    cursor: pointer;
-    background: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1px;
+  }
+
+  .surface-reference-value {
+    display: block;
+    min-width: 0;
+    max-height: min(38vh, 220px);
+    margin: 0 17px;
+    padding: 2px 0 14px;
+    overflow-y: auto;
+    color: var(--color-surface-text);
+    border-bottom: 1px solid var(--color-surface-line);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .surface-reference-panel .surface-reference-actions,
+  .surface-reference-sheet .surface-reference-actions {
+    display: flex;
+    margin: 0;
+    padding: 0 17px;
     border: 0;
   }
 
-  .wallet-address-copy svg {
-    width: 12px;
-    height: 12px;
+  .surface-reference-actions--single {
+    justify-content: center;
   }
 
-  .wallet-address-copy:hover,
-  .wallet-address-copy:focus-visible {
-    color: var(--color-surface-dim);
-  }
-
-  .wallet-address-copy:focus-visible {
-    outline: 1px solid currentColor;
-    outline-offset: 3px;
-  }
-
-  .wallet-address-copied {
+  .surface-reference-action {
     display: inline-flex;
+    flex: 0 0 50%;
     align-items: center;
-    width: 16px;
-    height: 16px;
-    color: var(--color-surface-live);
+    justify-content: center;
+    min-width: 0;
+    padding: 11px 0;
+    color: var(--color-surface-code);
     cursor: pointer;
+    background: transparent;
+    border: 0;
+    font-family: var(--font-mono);
+    font-size: 0.656rem;
+    letter-spacing: 0.1em;
+    line-height: 1.4;
+    text-align: center;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition:
+      color 120ms ease,
+      background-color 120ms ease;
   }
 
-  .wallet-address-copied-icon {
+  .surface-reference-actions--single .surface-reference-action {
+    flex-basis: 100%;
+  }
+
+  .surface-reference-action + .surface-reference-action {
+    border-left: 1px solid var(--color-surface-line);
+  }
+  .surface-reference-action:hover,
+  .surface-reference-action:focus-visible {
+    color: var(--color-surface-gold);
+    background: var(--color-surface-gold-soft);
+  }
+
+  .surface-reference-action:disabled {
+    cursor: wait;
+    opacity: 0.62;
+  }
+
+  .surface-reference-close {
+    padding: 0;
+    color: var(--color-surface-code);
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    line-height: 1.4;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .surface-reference-close:hover {
+    color: var(--color-surface-text);
+  }
+
+  .surface-reference-backdrop {
+    position: fixed;
+    z-index: 20;
+    inset: 0;
+    display: flex;
+    align-items: end;
+    justify-content: center;
+    padding: 0 6px 6px;
+    background: rgba(8, 6, 5, 0.58);
+  }
+
+  .surface-reference-sheet {
+    width: 100%;
+    max-height: min(72dvh, 520px);
+    overflow-y: auto;
+  }
+
+  .surface-reference-sheet-heading {
     display: grid;
-    width: 16px;
-    height: 16px;
-    font-size: 12px;
-    line-height: 1;
-    place-items: center;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
   }
 
-  .wallet-address-copied-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
+  .surface-reference-sheet-heading .surface-reference-close {
+    margin-right: 17px;
+  }
+
+  .surface-reference-popover-enter-active,
+  .surface-reference-popover-leave-active {
+    transition:
+      opacity 140ms ease,
+      transform 140ms ease;
+  }
+
+  .surface-reference-popover-enter-from,
+  .surface-reference-popover-leave-to {
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+
+  .surface-reference-panel--above.surface-reference-popover-enter-from,
+  .surface-reference-panel--above.surface-reference-popover-leave-to {
+    transform: translateY(6px) scale(0.97);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .surface-reference-trigger,
+    .surface-reference-action,
+    .surface-reference-panel,
+    .surface-reference-sheet,
+    .surface-reference-backdrop,
+    .surface-reference-popover-enter-active,
+    .surface-reference-popover-leave-active {
+      transition: none;
+    }
   }
 
   .surface-dropdown-footer {
@@ -833,7 +1057,7 @@
 
   .surface-act-column-head {
     display: grid;
-    grid-template-columns: 110px minmax(0, 1fr) 280px 36px;
+    grid-template-columns: 110px minmax(0, 1fr) 280px;
     border-bottom: 1px solid var(--color-surface-line);
     font-family: 'IBM Plex Mono', monospace;
     font-size: 11px;
@@ -928,7 +1152,7 @@
 
   .surface-act-record {
     display: grid;
-    grid-template-columns: 110px minmax(0, 1fr) 320px 36px;
+    grid-template-columns: 110px minmax(0, 1fr) 320px;
     min-width: 0;
     border-bottom: 1px solid var(--color-surface-faint);
   }
@@ -1028,7 +1252,7 @@
     line-height: 1.9;
   }
 
-  .surface-act-proof div {
+  .surface-act-proof > div {
     display: grid;
     grid-template-columns: 6rem minmax(0, 1fr);
     min-width: 0;
@@ -1059,108 +1283,6 @@
     display: inline-flex;
     align-items: center;
     min-width: 0;
-  }
-
-  .surface-act-tx-value {
-    min-width: 0;
-    color: inherit;
-    overflow-wrap: anywhere;
-  }
-
-  .surface-act-tx-action {
-    display: inline-flex;
-    flex: none;
-    width: 16px;
-    height: 16px;
-    margin-left: 6px;
-  }
-
-  .surface-act-tx-copy {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    padding: 0;
-    color: rgba(240, 234, 220, 0.36);
-    cursor: pointer;
-    background: none;
-    border: 0;
-  }
-
-  .surface-act-tx-copy svg {
-    width: 12px;
-    height: 12px;
-  }
-
-  .surface-act-tx-copy:hover,
-  .surface-act-tx-copy:focus-visible {
-    color: var(--color-surface-dim);
-  }
-
-  .surface-act-tx-copy:focus-visible {
-    outline: 1px solid currentColor;
-    outline-offset: 3px;
-  }
-
-  .surface-act-tx-copied {
-    display: inline-flex;
-    align-items: center;
-    width: 16px;
-    height: 16px;
-    color: var(--color-surface-live);
-    cursor: pointer;
-  }
-
-  .surface-act-tx-copied-icon {
-    display: grid;
-    width: 16px;
-    height: 16px;
-    font-size: 12px;
-    line-height: 1;
-    place-items: center;
-  }
-
-  .surface-act-tx-copied-label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .surface-act-explorer {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    justify-self: end;
-    align-self: start;
-    width: 26px;
-    height: 26px;
-    margin: 16px 0;
-    color: rgba(240, 234, 220, 0.36);
-    background: none;
-    border: 1px solid var(--color-surface-line);
-    border-radius: 4px;
-  }
-
-  .surface-act-explorer:hover,
-  .surface-act-explorer:focus-visible {
-    color: var(--color-surface-gold);
-    border-color: var(--color-surface-gold-line);
-    outline: none;
-  }
-
-  .surface-act-explorer:focus-visible {
-    outline: 1px solid currentColor;
-    outline-offset: 3px;
-  }
-
-  .surface-act-explorer svg {
-    width: 13px;
-    height: 13px;
   }
 
   .chain-polling-status {
@@ -1213,7 +1335,7 @@
     }
 
     .surface-act-column-head {
-      grid-template-columns: 6.5rem minmax(0, 1fr) 36px;
+      grid-template-columns: 6.5rem minmax(0, 1fr);
     }
 
     .surface-act-column-head span:nth-child(3) {
@@ -1229,7 +1351,7 @@
     }
 
     .surface-act-record {
-      grid-template-columns: 6.5rem minmax(0, 1fr) 36px;
+      grid-template-columns: 6.5rem minmax(0, 1fr);
     }
 
     .surface-act-assertion {
@@ -1241,14 +1363,9 @@
       padding: 0 0 16px;
     }
 
-    .surface-act-proof div {
+    .surface-act-proof > div {
       display: grid;
       grid-template-columns: 6rem minmax(0, 1fr);
-    }
-    .surface-act-explorer {
-      grid-column: 3;
-      grid-row: 1;
-      margin: 16px 0 0;
     }
   }
 }

@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-import { shortenHash, shortenIdentifier } from '../lib/shorten'
+import {
+  type SurfaceAssertionPart,
+  type SurfaceReference as SurfaceReferenceModel,
+} from '../domain/surface-reference'
 import { surfaceActKindCategories, type SurfaceAct } from '../domain/surface-act'
+import { shortenHash, shortenIdentifier } from '../lib/shorten'
+import SurfaceReference from './SurfaceReference.vue'
 
 const props = defineProps<{
   act: SurfaceAct
@@ -16,33 +21,56 @@ const emit = defineEmits<{
   'typing-complete': []
 }>()
 
+type TypedAssertionPart = SurfaceAssertionPart | { type: 'partial-reference'; value: string }
+
 const typedLength = ref(0)
 let typingTimer: number | undefined
-const transactionCopyState = ref<'idle' | 'copying' | 'copied'>('idle')
-let copiedTimer: number | undefined
-let isUnmounted = false
 
-const assertionIdentifierPattern =
-  /(did:pkh:…cosmos1[a-z0-9]+…[a-z0-9]{6}|[a-z][a-z\d+.-]*:[^\s.]+(?:\.[^\s.]+)*)/i
-const technicalIdentifierPattern =
-  /^(did:pkh:…cosmos1[a-z0-9]+…[a-z0-9]{6}|[a-z][a-z\d+.-]*:[^\s.]+(?:\.[^\s.]+)*)$/i
-
-const typedAssertionParts = computed(() => {
+const assertionText = computed(() =>
+  props.act.assertion
+    .map((part) => (part.type === 'text' ? part.value : part.reference.display))
+    .join(''),
+)
+const typedAssertionParts = computed<TypedAssertionPart[]>(() => {
   let remainingLength = typedLength.value
+  const parts: TypedAssertionPart[] = []
 
-  return props.act.assertion.split(assertionIdentifierPattern).flatMap((value) => {
-    const text = value.slice(0, remainingLength)
+  for (const part of props.act.assertion) {
+    const value = part.type === 'text' ? part.value : part.reference.display
+    const typedValue = value.slice(0, Math.max(0, remainingLength))
     remainingLength -= value.length
 
-    return text ? [{ text, technical: technicalIdentifierPattern.test(value) }] : []
-  })
+    if (!typedValue) {
+      continue
+    }
+
+    if (part.type === 'reference') {
+      parts.push(
+        typedValue === value
+          ? { type: 'reference', reference: part.reference }
+          : { type: 'partial-reference', value: typedValue },
+      )
+    } else {
+      parts.push({ type: 'text', value: typedValue })
+    }
+  }
+
+  return parts
 })
 const entryParts = computed(() => {
   const entry = props.act.entry ?? '—'
   const match = entry.match(/^(.*)(\.\d+\.\d+)$/)
   return match ? { prefix: match[1], suffix: match[2] } : { prefix: entry, suffix: '' }
 })
-const transactionExplorerUrl = computed(() => `${props.explorer}/tx/${props.act.txhash}`)
+const transactionReference = computed<SurfaceReferenceModel>(() => ({
+  designation: 'Transaction hash',
+  value: props.act.txhash,
+  display: shortenHash(props.act.txhash),
+  link: {
+    href: `${props.explorer}/tx/${props.act.txhash}`,
+    label: 'OPEN IN EXPLORER',
+  },
+}))
 
 function compactDate(value: string) {
   const normalized = value.match(
@@ -56,38 +84,6 @@ function compactDate(value: string) {
   return value.replace('.000Z', ' UTC').replace('T', ' ').replace(/Z$/, ' UTC')
 }
 
-function clearCopiedTimer() {
-  window.clearTimeout(copiedTimer)
-  copiedTimer = undefined
-}
-
-async function copyTransactionHash() {
-  if (transactionCopyState.value !== 'idle') {
-    return
-  }
-
-  transactionCopyState.value = 'copying'
-
-  try {
-    await navigator.clipboard.writeText(props.act.txhash)
-  } catch {
-    if (!isUnmounted) {
-      transactionCopyState.value = 'idle'
-    }
-    return
-  }
-
-  if (isUnmounted) {
-    return
-  }
-
-  transactionCopyState.value = 'copied'
-  copiedTimer = window.setTimeout(() => {
-    copiedTimer = undefined
-    transactionCopyState.value = 'idle'
-  }, 1000)
-}
-
 function stopTyping() {
   window.clearInterval(typingTimer)
   typingTimer = undefined
@@ -97,40 +93,36 @@ function startTyping() {
   stopTyping()
 
   if (props.reducedMotion || !props.typingActive) {
-    typedLength.value = props.act.assertion.length
+    typedLength.value = assertionText.value.length
     return
   }
 
   typedLength.value = 1
   typingTimer = window.setInterval(() => {
-    if (typedLength.value >= props.act.assertion.length) {
-      typedLength.value = props.act.assertion.length
+    if (typedLength.value >= assertionText.value.length) {
+      typedLength.value = assertionText.value.length
       stopTyping()
       emit('typing-complete')
       return
     }
 
-    const nextCharacter = props.act.assertion[typedLength.value] ?? ''
+    const nextCharacter = assertionText.value[typedLength.value] ?? ''
     typedLength.value = Math.min(
-      props.act.assertion.length,
+      assertionText.value.length,
       typedLength.value + (nextCharacter === ' ' ? 2 : 1),
     )
   }, 16)
 }
 
 watch(
-  () => [props.act.id, props.act.assertion, props.reducedMotion, props.typingActive] as const,
+  () => [props.act.id, assertionText.value, props.reducedMotion, props.typingActive] as const,
   () => {
     startTyping()
   },
   { immediate: true },
 )
 
-onBeforeUnmount(() => {
-  stopTyping()
-  isUnmounted = true
-  clearCopiedTimer()
-})
+onBeforeUnmount(stopTyping)
 </script>
 
 <template>
@@ -147,10 +139,13 @@ onBeforeUnmount(() => {
       >
         {{ surfaceActKindCategories[act.kind] }}
       </p>
-      <p class="surface-act-inscription" :aria-label="act.assertion">
+      <p class="surface-act-inscription">
         <template v-for="(part, index) in typedAssertionParts" :key="index">
-          <span v-if="part.technical" class="surface-act-identifier">{{ part.text }}</span>
-          <template v-else>{{ part.text }}</template>
+          <SurfaceReference v-if="part.type === 'reference'" :reference="part.reference" />
+          <span v-else-if="part.type === 'partial-reference'" class="surface-act-identifier">
+            {{ part.value }}
+          </span>
+          <template v-else>{{ part.value }}</template>
         </template>
         <span v-if="cursorVisible" class="surface-act-cursor" aria-hidden="true" />
       </p>
@@ -160,32 +155,7 @@ onBeforeUnmount(() => {
       <div class="surface-act-proof-row surface-act-tx-row">
         <dt>tx</dt>
         <dd class="surface-act-tx">
-          <span class="surface-act-tx-value">{{ shortenHash(act.txhash) }}</span>
-          <span class="surface-act-tx-action">
-            <button
-              v-if="transactionCopyState !== 'copied'"
-              class="surface-act-tx-copy"
-              type="button"
-              :disabled="transactionCopyState === 'copying'"
-              :aria-label="`Copy transaction hash ${act.txhash}`"
-              @click="copyTransactionHash"
-            >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <rect x="8" y="8" width="12" height="12" rx="1" />
-                <path d="M4 16V5a1 1 0 0 1 1-1h11" />
-              </svg>
-            </button>
-            <span v-else class="surface-act-tx-copied" role="status">
-              <span class="surface-act-tx-copied-icon" aria-hidden="true">✓</span>
-              <span class="surface-act-tx-copied-label">Copied</span>
-            </span>
-          </span>
+          <SurfaceReference :reference="transactionReference" evidence />
         </dd>
       </div>
       <div>
@@ -200,7 +170,14 @@ onBeforeUnmount(() => {
         <dt>constitution</dt>
         <dd>
           r. {{ act.payload.constitution_revision }} ·
-          {{ shortenHash(act.payload.constitution_hash) }}
+          <SurfaceReference
+            :reference="{
+              designation: 'Constitution hash',
+              value: act.payload.constitution_hash,
+              display: shortenHash(act.payload.constitution_hash),
+            }"
+            evidence
+          />
         </dd>
       </div>
       <div
@@ -210,32 +187,21 @@ onBeforeUnmount(() => {
         "
       >
         <dt>credential</dt>
-        <dd>{{ shortenIdentifier(act.payload.identifier) }}</dd>
+        <dd>
+          <SurfaceReference
+            :reference="{
+              designation: 'Credential identifier',
+              value: act.payload.identifier,
+              display: shortenIdentifier(act.payload.identifier),
+            }"
+            evidence
+          />
+        </dd>
       </div>
       <div v-if="act.kind === 'governance.decision.recorded' && act.payload.verdict">
         <dt>verdict</dt>
         <dd>{{ act.payload.verdict }}</dd>
       </div>
     </dl>
-    <a
-      class="surface-act-explorer"
-      :href="transactionExplorerUrl"
-      :title="`View transaction ${act.txhash} in explorer`"
-      :aria-label="`View transaction ${act.txhash} in explorer`"
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-        <path d="M15 3h6v6" />
-        <path d="M10 14 21 3" />
-      </svg>
-    </a>
   </article>
 </template>

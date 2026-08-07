@@ -1,3 +1,5 @@
+import type { SurfaceAssertionPart } from './surface-reference'
+
 export type SurfaceActKind =
   | 'identity.created'
   | 'governance.instantiated'
@@ -22,7 +24,7 @@ export type SurfaceAct = {
   action?: string
   title: string
   description: string
-  assertion: string
+  assertion: SurfaceAssertionPart[]
   payload: Record<string, string>
 }
 

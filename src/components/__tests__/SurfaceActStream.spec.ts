@@ -8,10 +8,10 @@ import SurfaceActStream from '../SurfaceActStream.vue'
 
 const testExplorer = 'https://explorer.aknodes.com/AXONE-TESTNET'
 
-function makeAct(id: string, height: number, signer: string) {
+function makeAct(id: string, height: number, signer: string): SurfaceAct {
   return {
     id: `${id}:0:0`,
-    kind: 'identity.created' as const,
+    kind: 'identity.created',
     txhash: id,
     msgIndex: 0,
     actIndex: 0,
@@ -23,7 +23,7 @@ function makeAct(id: string, height: number, signer: string) {
     action: 'instantiate',
     title: 'IDENTITY REGISTERED',
     description: 'Identity recorded.',
-    assertion: `Identity established as ${signer}.`,
+    assertion: [{ type: 'text', value: `Identity established as ${signer}.` }],
     payload: {},
   }
 }
@@ -54,7 +54,7 @@ describe('SurfaceActStream', () => {
     expect(records[0]!.text()).toContain('Identity established as axone1oldest.')
     expect(records[1]!.text()).toContain('Identity established as axone1newest.')
     expect(records[0]!.find('.surface-act-category').text()).toBe('IDENTITY')
-    expect(records[0]!.find('.surface-act-inscription').attributes('aria-label')).toBe(
+    expect(records[0]!.find('.surface-act-inscription').text()).toBe(
       'Identity established as axone1oldest.',
     )
     expect(records[0]!.find('.surface-act-entry').text()).toContain('1.0.0')
@@ -66,12 +66,36 @@ describe('SurfaceActStream', () => {
     expect(wrapper.find('.surface-act-cursor').exists()).toBe(false)
   })
 
-  it('renders embedded DID and URN identifiers in monospace spans', async () => {
-    const assertion =
-      'Credential issued by did:pkh:…cosmos1s7u…texh8c for subject urn:axone:te…23a1-1.'
+  it('renders complete assertion references as inspectable triggers', async () => {
+    const issuer =
+      'did:pkh:cosmos:axone-dendrite-2:cosmos1s7uksna4686k27cg6gneqltxx4yjsscs3p7ztvvned6j2thjjthstexh8c'
+    const subject = 'urn:axone:testnet:subject:gh31175346323a1-1'
     const wrapper = mount(SurfaceActLine, {
       props: {
-        act: { ...makeAct('TX-DID', 1, 'axone1issuer'), assertion },
+        act: {
+          ...makeAct('TX-DID', 1, 'axone1issuer'),
+          assertion: [
+            { type: 'text', value: 'Credential issued by ' },
+            {
+              type: 'reference',
+              reference: {
+                designation: 'Credential issuer',
+                value: issuer,
+                display: 'did:pkh:…cosmos1s7u…texh8c',
+              },
+            },
+            { type: 'text', value: ' for subject ' },
+            {
+              type: 'reference',
+              reference: {
+                designation: 'Credential subject',
+                value: subject,
+                display: 'urn:axone:te…23a1-1',
+              },
+            },
+            { type: 'text', value: '.' },
+          ],
+        },
         explorer: testExplorer,
         reducedMotion: true,
         typingActive: false,
@@ -81,12 +105,50 @@ describe('SurfaceActStream', () => {
 
     await nextTick()
 
-    const identifiers = wrapper.findAll('.surface-act-identifier')
+    const assertion = wrapper.get('.surface-act-inscription')
+    const identifiers = assertion.findAll('.surface-reference-trigger')
     expect(identifiers.map((identifier) => identifier.text())).toEqual([
       'did:pkh:…cosmos1s7u…texh8c',
       'urn:axone:te…23a1-1',
     ])
-    expect(wrapper.get('.surface-act-inscription').text()).toBe(assertion)
+    expect(assertion.text()).toBe(
+      'Credential issued by did:pkh:…cosmos1s7u…texh8c for subject urn:axone:te…23a1-1.',
+    )
+    expect(wrapper.text()).not.toContain(issuer)
+    await identifiers[0]!.trigger('click')
+    expect(wrapper.get('[role=\"dialog\"]').text()).toContain(issuer)
+  })
+
+  it('keeps an incompletely typed reference noninteractive', async () => {
+    vi.useFakeTimers()
+    const display = 'did:pkh:…cosmos1s7u…texh8c'
+    const wrapper = mount(SurfaceActLine, {
+      props: {
+        act: {
+          ...makeAct('TX-PARTIAL', 1, 'axone1issuer'),
+          assertion: [
+            {
+              type: 'reference',
+              reference: {
+                designation: 'Credential issuer',
+                value:
+                  'did:pkh:cosmos:axone-dendrite-2:cosmos1s7uksna4686k27cg6gneqltxx4yjsscs3p7ztvvned6j2thjjthstexh8c',
+                display,
+              },
+            },
+          ],
+        },
+        explorer: testExplorer,
+        reducedMotion: false,
+        typingActive: true,
+        cursorVisible: true,
+      },
+    })
+
+    vi.advanceTimersByTime(16 * 5)
+    await nextTick()
+    expect(wrapper.get('.surface-act-identifier').text().length).toBeLessThan(display.length)
+    expect(wrapper.find('.surface-act-inscription .surface-reference-trigger').exists()).toBe(false)
   })
 
   it('renders governance, verdict, and credential evidence', () => {
@@ -158,7 +220,7 @@ describe('SurfaceActStream', () => {
     }
   })
 
-  it('keeps the transaction text noninteractive, links through the explorer button, and restores copy', async () => {
+  it('opens transaction evidence with a safe explorer action and copies its canonical hash', async () => {
     vi.useFakeTimers()
     const writeText = vi.fn<(text: string) => Promise<void>>().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { clipboard: { writeText } })
@@ -173,66 +235,27 @@ describe('SurfaceActStream', () => {
       },
     })
 
-    const transactionValue = wrapper.get('.surface-act-tx-value')
-    expect(transactionValue.text()).toBe('34BB1E16…EF8A931F')
-    expect(transactionValue.element.tagName).toBe('SPAN')
-    expect(transactionValue.attributes('href')).toBeUndefined()
-    const explorerButton = wrapper.get('.surface-act-explorer')
-    expect(explorerButton.attributes('href')).toBe(`${testExplorer}/tx/${txhash}`)
-    expect(explorerButton.attributes('aria-label')).toBe(`View transaction ${txhash} in explorer`)
-    expect(explorerButton.attributes('target')).toBe('_blank')
-    expect(explorerButton.attributes('rel')).toBe('noopener noreferrer')
-    expect(wrapper.get('.surface-act-tx-copy').attributes('aria-label')).toBe(
-      `Copy transaction hash ${txhash}`,
-    )
-    expect(wrapper.get('.surface-act-tx-copy').find('svg').exists()).toBe(true)
-    expect(wrapper.get('.surface-act-tx-action').find('.surface-act-tx-copy').exists()).toBe(true)
+    const transactionTrigger = wrapper.get('.surface-act-tx .surface-reference-trigger')
+    expect(transactionTrigger.text()).toBe('34BB1E16…EF8A931F')
+    await transactionTrigger.trigger('click')
 
-    await wrapper.get('.surface-act-tx-copy').trigger('click')
+    const dialog = wrapper.get('[role=\"dialog\"]')
+    expect(dialog.text()).toContain('Exhibit · TX HASH')
+    expect(dialog.get('.surface-reference-verification').text()).toBe('Verified')
+    expect(dialog.text()).toContain(txhash)
+    const explorerLink = dialog.get('a')
+    expect(explorerLink.text()).toBe('OPEN IN EXPLORER')
+    expect(explorerLink.attributes('href')).toBe(`${testExplorer}/tx/${txhash}`)
+    expect(explorerLink.attributes('target')).toBe('_blank')
+    expect(explorerLink.attributes('rel')).toBe('noopener noreferrer')
+
+    await dialog.get('button.surface-reference-action').trigger('click')
     await Promise.resolve()
-    await nextTick()
-
     expect(writeText).toHaveBeenCalledWith(txhash)
-    expect(wrapper.find('.surface-act-tx-copy').exists()).toBe(false)
-    expect(wrapper.get('.surface-act-tx-copied').attributes('role')).toBe('status')
-    expect(wrapper.get('.surface-act-tx-copied').text()).toContain('✓')
-    expect(wrapper.get('.surface-act-tx-copied').text()).toContain('Copied')
-    expect(wrapper.get('.surface-act-tx-action').find('.surface-act-tx-copy').exists()).toBe(false)
-    expect(wrapper.get('.surface-act-tx-copied-icon').text()).toBe('✓')
-    expect(wrapper.get('.surface-act-tx-copied-label').text()).toBe('Copied')
-
-    vi.advanceTimersByTime(999)
+    expect(dialog.get('button.surface-reference-action').text()).toBe('Copied')
+    vi.advanceTimersByTime(1000)
     await nextTick()
-    expect(wrapper.find('.surface-act-tx-copied').exists()).toBe(true)
-
-    vi.advanceTimersByTime(1)
-    await nextTick()
-    expect(wrapper.find('.surface-act-tx-copied').exists()).toBe(false)
-    expect(wrapper.find('.surface-act-tx-copy').exists()).toBe(true)
-  })
-
-  it('keeps the transaction copy control available when clipboard writing fails', async () => {
-    const writeText = vi
-      .fn<(text: string) => Promise<void>>()
-      .mockRejectedValue(new Error('Clipboard unavailable'))
-    vi.stubGlobal('navigator', { clipboard: { writeText } })
-    const wrapper = mount(SurfaceActLine, {
-      props: {
-        act: makeAct('34BB1E16A4051234567890ABCDEF8A931F', 1, 'axone1issuer'),
-        explorer: testExplorer,
-        reducedMotion: true,
-        typingActive: false,
-        cursorVisible: false,
-      },
-    })
-
-    await wrapper.get('.surface-act-tx-copy').trigger('click')
-    await Promise.resolve()
-    await nextTick()
-
-    expect(writeText).toHaveBeenCalledOnce()
-    expect(wrapper.find('.surface-act-tx-copied').exists()).toBe(false)
-    expect(wrapper.get('.surface-act-tx-copy').attributes('disabled')).toBeUndefined()
+    expect(dialog.get('button.surface-reference-action').text()).toBe('Copy')
   })
 
   it('reveals exactly one record assertion at a time', async () => {

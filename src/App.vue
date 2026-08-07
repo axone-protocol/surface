@@ -5,6 +5,8 @@ import { AnimatePresence, motion, MotionConfig } from 'motion-v'
 
 import SurfaceActStream from './components/SurfaceActStream.vue'
 import SurfaceDropdown from './components/SurfaceDropdown.vue'
+import SurfaceReference from './components/SurfaceReference.vue'
+import type { SurfaceReference as SurfaceReferenceModel } from './domain/surface-reference'
 import { shortenWalletAddress } from './lib/shorten'
 import { useSurfaceActs } from './composables/useSurfaceActs'
 import { useWalletConnection } from './composables/useWalletConnection'
@@ -59,10 +61,6 @@ const {
   connect: connectWalletClient,
   disconnect: disconnectWalletClient,
 } = useWalletConnection(selectedNetwork)
-const walletAnnouncement = ref('')
-const walletAddressCopyState = ref<'idle' | 'copying' | 'copied'>('idle')
-let walletAddressCopiedTimer: number | undefined
-let isUnmounted = false
 const walletTriggerLabel = computed(() => {
   if (walletConnectionStatus.value === 'connecting') {
     return 'Waiting for wallet...'
@@ -76,7 +74,21 @@ const walletAddressExplorerUrl = computed(() =>
     ? `${selectedNetwork.value.explorer}/account/${walletConnection.value.address}`
     : undefined,
 )
+const walletReference = computed<SurfaceReferenceModel | undefined>(() => {
+  if (!walletConnection.value || !walletAddressExplorerUrl.value) {
+    return undefined
+  }
 
+  return {
+    designation: 'Wallet address',
+    value: walletConnection.value.address,
+    display: shortenWalletAddress(walletConnection.value.address),
+    link: {
+      href: walletAddressExplorerUrl.value,
+      label: 'OPEN IN EXPLORER',
+    },
+  }
+})
 function selectNetwork(networkKey: Network['key']) {
   const network = networks.find((entry) => entry.key === networkKey)
   if (!network || !network.selectable) {
@@ -107,39 +119,6 @@ async function connectWallet(provider: WalletProviderId) {
   if (walletConnection.value) {
     walletMenuOpen.value = false
   }
-}
-
-function clearWalletAddressCopiedTimer() {
-  window.clearTimeout(walletAddressCopiedTimer)
-  walletAddressCopiedTimer = undefined
-}
-
-async function copyWalletAddress(address: string) {
-  if (walletAddressCopyState.value !== 'idle') {
-    return
-  }
-
-  walletAddressCopyState.value = 'copying'
-  try {
-    await navigator.clipboard.writeText(address)
-  } catch {
-    if (!isUnmounted) {
-      walletAddressCopyState.value = 'idle'
-      walletAnnouncement.value = 'Could not copy wallet address.'
-    }
-    return
-  }
-
-  if (isUnmounted) {
-    return
-  }
-
-  walletAnnouncement.value = 'Wallet address copied.'
-  walletAddressCopyState.value = 'copied'
-  walletAddressCopiedTimer = window.setTimeout(() => {
-    walletAddressCopiedTimer = undefined
-    walletAddressCopyState.value = 'idle'
-  }, 1000)
 }
 
 function disconnectWallet() {
@@ -197,8 +176,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.clearInterval(actorTimer)
   window.clearInterval(lawTimer)
-  isUnmounted = true
-  clearWalletAddressCopiedTimer()
   if (documentClickHandler) {
     document.removeEventListener('click', documentClickHandler)
   }
@@ -228,7 +205,6 @@ onBeforeUnmount(() => {
               <span>{{ walletTriggerLabel }}</span>
               <span v-if="!walletTriggerDisabled" class="menu-chevron" aria-hidden="true">▾</span>
             </button>
-            <p class="sr-only" role="status" aria-live="polite">{{ walletAnnouncement }}</p>
             <SurfaceDropdown
               v-if="walletMenuOpen"
               id="wallet-menu"
@@ -286,49 +262,13 @@ onBeforeUnmount(() => {
                     {{ walletConnection.provider === 'keplr' ? 'Keplr' : 'Leap' }}
                   </p>
                   <div class="wallet-address-row">
-                    <a
-                      class="wallet-address"
-                      :href="walletAddressExplorerUrl"
-                      :title="walletConnection.address"
-                      :aria-label="`View wallet address ${walletConnection.address} in explorer`"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {{ shortenWalletAddress(walletConnection.address) }}
-                    </a>
-                    <span class="wallet-address-action">
-                      <button
-                        v-if="walletAddressCopyState !== 'copied'"
-                        class="wallet-address-copy"
-                        type="button"
-                        role="menuitem"
-                        :disabled="walletAddressCopyState === 'copying'"
-                        :title="walletConnection.address"
-                        :aria-label="`Copy wallet address: ${walletConnection.address}`"
-                        @click="copyWalletAddress(walletConnection.address)"
-                      >
-                        <svg
-                          aria-hidden="true"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                        >
-                          <rect x="8" y="8" width="12" height="12" rx="1" />
-                          <path d="M4 16V5a1 1 0 0 1 1-1h11" />
-                        </svg>
-                      </button>
-                      <span v-else class="wallet-address-copied" role="status">
-                        <span class="wallet-address-copied-icon" aria-hidden="true">✓</span>
-                        <span class="wallet-address-copied-label">Copied</span>
-                      </span>
-                    </span>
+                    <SurfaceReference v-if="walletReference" :reference="walletReference" />
                   </div>
                 </div>
               </template>
               <template #footer>
                 <button
-                  class="network-option wallet-disconnect"
+                  class="wallet-disconnect"
                   type="button"
                   role="menuitem"
                   @click="disconnectWallet"
