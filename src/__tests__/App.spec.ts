@@ -35,16 +35,37 @@ function createCanvasContextMock() {
 }
 
 function createMatchMediaMock(matches: boolean) {
-  return vi.fn<() => MediaQueryList>().mockImplementation(() => ({
-    matches,
+  let currentMatches = matches
+  const changeListeners = new Set<(event: MediaQueryListEvent) => void>()
+  const mediaQueryList = {
+    get matches() {
+      return currentMatches
+    },
     media: '(prefers-reduced-motion: reduce)',
     onchange: null,
-    addEventListener: vi.fn<() => void>(),
-    removeEventListener: vi.fn<() => void>(),
+    addEventListener: vi.fn((type: string, listener: (event: MediaQueryListEvent) => void) => {
+      if (type === 'change') {
+        changeListeners.add(listener)
+      }
+    }),
+    removeEventListener: vi.fn((type: string, listener: (event: MediaQueryListEvent) => void) => {
+      if (type === 'change') {
+        changeListeners.delete(listener)
+      }
+    }),
     dispatchEvent: vi.fn<() => boolean>(),
     addListener: vi.fn<() => void>(),
     removeListener: vi.fn<() => void>(),
-  }))
+  } as unknown as MediaQueryList
+  const matchMedia = vi.fn<() => MediaQueryList>().mockReturnValue(mediaQueryList)
+
+  return Object.assign(matchMedia, {
+    dispatchChange(nextMatches: boolean) {
+      currentMatches = nextMatches
+      const event = { matches: currentMatches } as MediaQueryListEvent
+      changeListeners.forEach((listener) => listener(event))
+    },
+  })
 }
 
 function createEmptyTxList() {
@@ -158,6 +179,58 @@ describe('App', () => {
     await wrapper.get('.network-trigger').trigger('click')
     expect(wrapper.get('.network-trigger').attributes('aria-expanded')).toBe('false')
     expect(wrapper.find('#network-menu').exists()).toBe(false)
+  })
+
+  it('stops hero rotation when reduced motion becomes preferred', async () => {
+    vi.useFakeTimers()
+    try {
+      const matchMedia = createMatchMediaMock(false)
+      const fetchMock = vi
+        .fn<() => Promise<Response>>()
+        .mockImplementation(async () => createResponse(createEmptyTxList()))
+
+      Object.defineProperty(window, 'matchMedia', {
+        writable: true,
+        value: matchMedia,
+      })
+      Object.defineProperty(window, 'fetch', {
+        writable: true,
+        value: fetchMock,
+      })
+      Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+        writable: true,
+        value: vi
+          .fn<() => CanvasRenderingContext2D | null>()
+          .mockReturnValue(createCanvasContextMock()),
+      })
+
+      const wrapper = mountApp()
+      await flushPromises()
+      await wrapper.vm.$nextTick()
+
+      const initialActorLine = wrapper.get('.actor-line').text()
+      const initialLawLabel = wrapper.get('.law-line').attributes('aria-label')
+
+      vi.advanceTimersByTime(4600)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.get('.actor-line').text()).not.toBe(initialActorLine)
+
+      vi.advanceTimersByTime(600)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.get('.law-line').attributes('aria-label')).not.toBe(initialLawLabel)
+
+      matchMedia.dispatchChange(true)
+      await wrapper.vm.$nextTick()
+      const reducedActorLine = wrapper.get('.actor-line').text()
+      const reducedLawLabel = wrapper.get('.law-line').attributes('aria-label')
+
+      vi.advanceTimersByTime(10_400)
+      await wrapper.vm.$nextTick()
+      expect(wrapper.get('.actor-line').text()).toBe(reducedActorLine)
+      expect(wrapper.get('.law-line').attributes('aria-label')).toBe(reducedLawLabel)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('does not show register metadata when the chain request fails', async () => {

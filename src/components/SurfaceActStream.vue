@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { AnimatePresence, motion } from 'motion-v'
 
 import ChainPollingStatus from './ChainPollingStatus.vue'
 import SurfaceActLine from './SurfaceActLine.vue'
@@ -17,6 +18,14 @@ const props = defineProps<{
   polling: boolean
   explorer: string
 }>()
+const immediateMotionTransition = { duration: 0 }
+const registerMotionTransition = {
+  duration: 0.44,
+  ease: [0.2, 0.72, 0.24, 1],
+}
+const registerTransition = computed(() =>
+  props.reducedMotion ? immediateMotionTransition : registerMotionTransition,
+)
 
 const visibleActs = ref<SurfaceAct[]>([])
 const pendingActs = ref<SurfaceAct[]>([])
@@ -194,18 +203,29 @@ onBeforeUnmount(() => {
     <p v-if="error" class="surface-act-stream-error">{{ error }}</p>
 
     <div v-else-if="visibleActs.length > 0" class="surface-act-window">
-      <TransitionGroup tag="ol" name="surface-act-row" class="surface-act-list">
-        <li v-for="act in visibleActs" :key="act.id" class="surface-act-list-item">
-          <SurfaceActLine
-            :act="act"
-            :explorer="explorer"
-            :reducedMotion="reducedMotion"
-            :typing-active="typingActId === act.id"
-            :cursor-visible="cursorActId === act.id"
-            @typing-complete="completeTyping(act.id)"
-          />
-        </li>
-      </TransitionGroup>
+      <motion.ol layout class="surface-act-list">
+        <AnimatePresence mode="popLayout" :initial="false">
+          <motion.li
+            v-for="act in visibleActs"
+            :key="act.id"
+            layout
+            class="surface-act-list-item"
+            :initial="{ opacity: 0, y: '1.4em' }"
+            :animate="{ opacity: 1, y: 0 }"
+            :exit="{ opacity: 0, y: '-1.4em' }"
+            :transition="registerTransition"
+          >
+            <SurfaceActLine
+              :act="act"
+              :explorer="explorer"
+              :reducedMotion="reducedMotion"
+              :typing-active="typingActId === act.id"
+              :cursor-visible="cursorActId === act.id"
+              @typing-complete="completeTyping(act.id)"
+            />
+          </motion.li>
+        </AnimatePresence>
+      </motion.ol>
     </div>
 
     <div v-else-if="loading" class="surface-act-skeleton" role="status">
