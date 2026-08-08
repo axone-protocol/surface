@@ -1,7 +1,9 @@
 {
     "name": "axone-surface",
     "version": "0.0.0",
+    "description": "Public interface to the Axone protocol, making governed situations readable through an innovative web interface.",
     "private": true,
+    "license": "BSD-3-Clause",
     "type": "module",
     "packageManager": "pnpm@11.4.0",
     "scripts": {
