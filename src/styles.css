@@ -177,7 +177,7 @@
     min-width: 0;
     min-height: 100dvh;
     margin: 0 auto;
-    padding: clamp(20px, 3.2vw, 48px) 0 clamp(44px, 7vw, 96px);
+    padding: calc(57px + clamp(18px, 2.4vw, 30px)) 0 clamp(44px, 7vw, 96px);
   }
 
   .surface-mark,
@@ -204,14 +204,26 @@
   }
 
   .surface-bar {
+    position: fixed;
+    top: 15px;
+    inset-inline: 0;
+    z-index: 10;
     display: flex;
     gap: 40px;
     align-items: center;
     justify-content: space-between;
     min-width: 0;
-    max-width: 100%;
-    padding-bottom: 28px;
+    padding: 22px max(22px, calc((100vw - 1180px) / 2)) 21px;
+    background: rgba(8, 6, 5, 0.52);
     border-bottom: 1px solid var(--color-surface-faint);
+    border-top: 1px solid var(--color-surface-faint);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    transition: background-color 500ms linear;
+  }
+
+  .surface-bar:hover {
+    background: var(--color-surface-bg);
   }
 
   .top-connect,
@@ -793,6 +805,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .surface-bar,
     .surface-reference-trigger,
     .surface-reference-action,
     .surface-reference-panel,
@@ -915,7 +928,6 @@
     .surface-document {
       width: min(100%, calc(100% - 24px));
       gap: 28px;
-      padding-top: 20px;
       overflow-x: clip;
     }
 
@@ -1309,7 +1321,7 @@
   @media (max-width: 760px) {
     .surface-document {
       gap: 16px;
-      padding: 18px 0 56px;
+      padding: 117px 0 56px;
     }
 
     .doctrine-hero {
