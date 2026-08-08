@@ -116,7 +116,7 @@ describe('SurfaceActStream', () => {
     )
     expect(wrapper.text()).not.toContain(issuer)
     await identifiers[0]!.trigger('click')
-    expect(wrapper.get('[role=\"dialog\"]').text()).toContain(issuer)
+    expect(wrapper.get('[role="dialog"]').text()).toContain(issuer)
   })
 
   it('keeps an incompletely typed reference noninteractive', async () => {
@@ -239,7 +239,7 @@ describe('SurfaceActStream', () => {
     expect(transactionTrigger.text()).toBe('34BB1E16…EF8A931F')
     await transactionTrigger.trigger('click')
 
-    const dialog = wrapper.get('[role=\"dialog\"]')
+    const dialog = wrapper.get('[role="dialog"]')
     expect(dialog.text()).toContain('Exhibit · TX HASH')
     expect(dialog.get('.surface-reference-verification').text()).toBe('Verified')
     expect(dialog.text()).toContain(txhash)

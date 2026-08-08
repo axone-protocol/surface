@@ -9,11 +9,11 @@ const walletAddress = 'axone1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmk
 function stubMatchMedia(matches: boolean) {
   vi.stubGlobal(
     'matchMedia',
-    vi.fn().mockReturnValue({
+    vi.fn<() => MediaQueryList>().mockReturnValue({
       matches,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    }),
+      addEventListener: vi.fn<() => void>(),
+      removeEventListener: vi.fn<() => void>(),
+    } as unknown as MediaQueryList),
   )
 }
 

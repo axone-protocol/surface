@@ -43,12 +43,16 @@ function createMatchMediaMock(matches: boolean) {
     },
     media: '(prefers-reduced-motion: reduce)',
     onchange: null,
-    addEventListener: vi.fn((type: string, listener: (event: MediaQueryListEvent) => void) => {
-      if (type === 'change') {
-        changeListeners.add(listener)
-      }
-    }),
-    removeEventListener: vi.fn((type: string, listener: (event: MediaQueryListEvent) => void) => {
+    addEventListener: vi.fn<(type: string, listener: (event: MediaQueryListEvent) => void) => void>(
+      (type, listener) => {
+        if (type === 'change') {
+          changeListeners.add(listener)
+        }
+      },
+    ),
+    removeEventListener: vi.fn<
+      (type: string, listener: (event: MediaQueryListEvent) => void) => void
+    >((type, listener) => {
       if (type === 'change') {
         changeListeners.delete(listener)
       }
@@ -159,11 +163,18 @@ describe('App', () => {
     await flushPromises()
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.text()).toContain('AXONE / SURFACE')
-    expect(wrapper.get('h1').text()).toBe('GOVERNACT')
-    expect(wrapper.get('.top-connect').text()).toBe('Connect▾')
-    expect(wrapper.text()).toContain('axone-testnet')
-    expect(wrapper.text()).toContain('CHAIN REGISTER')
+    const camera = wrapper.get('.surface-camera')
+    expect(camera.attributes('data-active-facet')).toBe('current')
+    expect(wrapper.get('.surface-mark').text()).toBe('AXONE / SURFACE')
+    expect(wrapper.find('.surface-facet-label').exists()).toBe(false)
+    expect(wrapper.get('[data-facet="established"] .surface-act-stream').text()).toContain(
+      'CHAIN REGISTER',
+    )
+    expect(wrapper.get('[data-facet="initiated"] .surface-docket h2').text()).toBe('DOCKET')
+    const navigator = wrapper.get('.surface-navigator')
+    expect(navigator.text()).toContain('ESTABLISHED')
+    expect(navigator.text()).toContain('INITIATED')
+    expect(navigator.get('.surface-navigator-thumb').classes()).toContain('is-centered')
     expect(wrapper.text()).not.toContain('RECORDS')
     expect(wrapper.text()).not.toContain('LAST SYNC')
     expect(wrapper.text()).not.toContain('Awaiting')
@@ -179,6 +190,32 @@ describe('App', () => {
     await wrapper.get('.network-trigger').trigger('click')
     expect(wrapper.get('.network-trigger').attributes('aria-expanded')).toBe('false')
     expect(wrapper.find('#network-menu').exists()).toBe(false)
+  })
+
+  it('moves the focused camera one bounded facet at a time', async () => {
+    installSuccessfulBrowserMocks()
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: createMatchMediaMock(true),
+    })
+
+    const wrapper = mountApp()
+    await flushPromises()
+    const camera = wrapper.get('.surface-camera')
+    await camera.trigger('focus')
+
+    await camera.trigger('keydown', { key: 'ArrowLeft' })
+    expect(camera.attributes('data-active-facet')).toBe('established')
+    await camera.trigger('keydown', { key: 'ArrowLeft' })
+    expect(camera.attributes('data-active-facet')).toBe('established')
+
+    await camera.trigger('keydown', { key: 'ArrowRight' })
+    expect(camera.attributes('data-active-facet')).toBe('current')
+    await camera.trigger('keydown', { key: 'ArrowRight' })
+    expect(camera.attributes('data-active-facet')).toBe('initiated')
+    await camera.trigger('keydown', { key: 'ArrowRight' })
+    expect(camera.attributes('data-active-facet')).toBe('initiated')
   })
 
   it('stops hero rotation when reduced motion becomes preferred', async () => {
