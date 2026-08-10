@@ -6,8 +6,11 @@ import { AnimatePresence, motion, MotionConfig } from 'motion-v'
 import SurfaceActStream from './components/SurfaceActStream.vue'
 import SurfaceDropdown from './components/SurfaceDropdown.vue'
 import SurfaceReference from './components/SurfaceReference.vue'
+import { isIdentityRequestComplete } from './domain/identity-request'
+import type { IdentityRequestClient } from './domain/identity-request-client'
 import type { SurfaceReference as SurfaceReferenceModel } from './domain/surface-reference'
-import { shortenWalletAddress } from './lib/shorten'
+import { browserIdentityRequestClient } from './infra/browser-identity-request-client'
+import { shortenHash, shortenWalletAddress } from './lib/shorten'
 import { useSurfaceActs } from './composables/useSurfaceActs'
 import { useWalletConnection } from './composables/useWalletConnection'
 import type { WalletProviderId } from './domain/wallet-connection'
@@ -21,6 +24,10 @@ const actorLines = [
   'For any resource in scope.',
 ]
 const defaultLaw = surfaceLaws[0]!
+const walletProviderOptions: ReadonlyArray<{ id: WalletProviderId; label: string }> = [
+  { id: 'keplr', label: 'Keplr' },
+  { id: 'leap', label: 'Leap' },
+]
 
 type FacetId = 'established' | 'current' | 'initiated'
 
@@ -33,6 +40,11 @@ const activeActorIndex = ref(0)
 const selectedNetworkKey = ref<Network['key']>('testnet')
 const networkMenuOpen = ref(false)
 const walletMenuOpen = ref(false)
+const identityName = ref('')
+const identityDescription = ref('')
+const identityRequestState = ref<'idle' | 'submitting' | 'submitted' | 'error'>('idle')
+const identityRequestError = ref<string | null>(null)
+const submittedTransactionHash = ref<string | null>(null)
 const surfaceActionsEl = ref<HTMLElement | null>(null)
 const { acts, loading, error, polling } = useSurfaceActs()
 const surfaceCameraEl = ref<HTMLElement | null>(null)
@@ -103,6 +115,20 @@ const walletTriggerLabel = computed(() => {
   return walletConnection.value ? 'Connected' : 'Connect'
 })
 const walletTriggerDisabled = computed(() => walletConnectionStatus.value === 'connecting')
+const walletProviderInstallHint = computed(
+  () =>
+    `Install ${walletProviderOptions.map((provider) => provider.label).join(' or ')} to connect a wallet.`,
+)
+const identityRequestReady = computed(() =>
+  isIdentityRequestComplete({ name: identityName.value, description: identityDescription.value }),
+)
+const identityRequestSubmitting = computed(() => identityRequestState.value === 'submitting')
+const identityRequestConfigured = computed(
+  () =>
+    selectedNetwork.value.abstractAccountCodeId !== null &&
+    selectedNetwork.value.abstractAccountAdmin !== null &&
+    selectedNetwork.value.api !== null,
+)
 const walletAddressExplorerUrl = computed(() =>
   walletConnection.value
     ? `${selectedNetwork.value.explorer}/account/${walletConnection.value.address}`
@@ -123,6 +149,22 @@ const walletReference = computed<SurfaceReferenceModel | undefined>(() => {
     },
   }
 })
+const submittedTransactionReference = computed<SurfaceReferenceModel | undefined>(() => {
+  if (!submittedTransactionHash.value) {
+    return undefined
+  }
+
+  return {
+    designation: 'Transaction hash',
+    value: submittedTransactionHash.value,
+    display: shortenHash(submittedTransactionHash.value),
+    link: {
+      href: `${selectedNetwork.value.explorer}/tx/${submittedTransactionHash.value}`,
+      label: 'OPEN IN EXPLORER',
+    },
+  }
+})
+
 function selectNetwork(networkKey: Network['key']) {
   const network = networks.find((entry) => entry.key === networkKey)
   if (!network || !network.selectable) {
@@ -130,6 +172,7 @@ function selectNetwork(networkKey: Network['key']) {
   }
 
   selectedNetworkKey.value = network.key
+  clearIdentityRequest()
   networkMenuOpen.value = false
 }
 
@@ -141,6 +184,19 @@ function toggleNetworkMenu() {
 function toggleWalletMenu() {
   walletMenuOpen.value = !walletMenuOpen.value
   networkMenuOpen.value = false
+}
+
+function requestWalletConnection() {
+  if (walletTriggerDisabled.value) {
+    return
+  }
+
+  walletMenuOpen.value = true
+  networkMenuOpen.value = false
+}
+
+function walletProviderLabel(providerId: WalletProviderId) {
+  return walletProviderOptions.find((provider) => provider.id === providerId)?.label ?? providerId
 }
 
 function closeMenus() {
@@ -157,7 +213,52 @@ async function connectWallet(provider: WalletProviderId) {
 
 function disconnectWallet() {
   disconnectWalletClient()
+  clearIdentityRequest()
   closeMenus()
+}
+
+function clearIdentityRequestDraft() {
+  identityName.value = ''
+  identityDescription.value = ''
+}
+
+function clearIdentityRequest() {
+  clearIdentityRequestDraft()
+  identityRequestState.value = 'idle'
+  identityRequestError.value = null
+  submittedTransactionHash.value = null
+}
+
+async function submitIdentityRequest(client: IdentityRequestClient = browserIdentityRequestClient) {
+  if (
+    !walletConnection.value ||
+    !identityRequestReady.value ||
+    !identityRequestConfigured.value ||
+    identityRequestSubmitting.value
+  ) {
+    return
+  }
+
+  identityRequestState.value = 'submitting'
+  identityRequestError.value = null
+  submittedTransactionHash.value = null
+
+  try {
+    const submitted = await client.submit({
+      provider: walletConnection.value.provider,
+      sender: walletConnection.value.address,
+      network: selectedNetwork.value,
+      name: identityName.value,
+      description: identityDescription.value,
+    })
+    identityRequestState.value = 'submitted'
+    submittedTransactionHash.value = submitted.transactionHash
+    clearIdentityRequestDraft()
+  } catch (error) {
+    identityRequestState.value = 'error'
+    identityRequestError.value =
+      error instanceof Error ? error.message : 'Identity request could not be submitted.'
+  }
 }
 
 function rotateActorLine() {
@@ -351,16 +452,33 @@ function handleCameraWheel(event: WheelEvent) {
 }
 
 watch(prefersReducedMotion, startHeroRotation)
+watch(
+  () => walletConnection.value?.address,
+  (address, previousAddress) => {
+    if (previousAddress && address !== previousAddress) {
+      clearIdentityRequest()
+    }
+  },
+)
 
 onMounted(() => {
   documentClickHandler = (event) => {
     const target = event.target as Node | null
     const root = surfaceActionsEl.value
+    const inReferenceSurface =
+      target instanceof Element &&
+      target.closest(
+        '.surface-reference-panel, .surface-reference-sheet, .surface-reference-backdrop',
+      )
+    const isWalletConnectionRequest =
+      target instanceof Element && target.closest('.identity-request-connect-action')
     if (
       (networkMenuOpen.value || walletMenuOpen.value) &&
       root &&
       target &&
-      !root.contains(target)
+      !root.contains(target) &&
+      !inReferenceSurface &&
+      !isWalletConnectionRequest
     ) {
       closeMenus()
     }
@@ -420,31 +538,21 @@ onBeforeUnmount(() => {
             <template v-if="!walletConnection">
               <div class="wallet-register-list">
                 <button
+                  v-for="provider in walletProviderOptions"
+                  :key="provider.id"
                   class="network-option wallet-option"
-                  :class="{ 'is-disabled': !availableWalletProviders.includes('keplr') }"
+                  :class="{ 'is-disabled': !availableWalletProviders.includes(provider.id) }"
                   type="button"
                   role="menuitem"
-                  :aria-disabled="!availableWalletProviders.includes('keplr')"
-                  :disabled="!availableWalletProviders.includes('keplr')"
-                  @click="connectWallet('keplr')"
+                  :aria-disabled="!availableWalletProviders.includes(provider.id)"
+                  :disabled="!availableWalletProviders.includes(provider.id)"
+                  @click="connectWallet(provider.id)"
                 >
-                  <span class="wallet-option-name">Keplr</span>
+                  <span class="wallet-option-name">{{ provider.label }}</span>
                   <span class="wallet-option-status">
-                    {{ availableWalletProviders.includes('keplr') ? 'available' : 'unavailable' }}
-                  </span>
-                </button>
-                <button
-                  class="network-option wallet-option"
-                  :class="{ 'is-disabled': !availableWalletProviders.includes('leap') }"
-                  type="button"
-                  role="menuitem"
-                  :aria-disabled="!availableWalletProviders.includes('leap')"
-                  :disabled="!availableWalletProviders.includes('leap')"
-                  @click="connectWallet('leap')"
-                >
-                  <span class="wallet-option-name">Leap</span>
-                  <span class="wallet-option-status">
-                    {{ availableWalletProviders.includes('leap') ? 'available' : 'unavailable' }}
+                    {{
+                      availableWalletProviders.includes(provider.id) ? 'available' : 'unavailable'
+                    }}
                   </span>
                 </button>
               </div>
@@ -454,7 +562,7 @@ onBeforeUnmount(() => {
                 role="status"
                 aria-live="polite"
               >
-                Install Keplr or Leap to connect a wallet.
+                {{ walletProviderInstallHint }}
               </p>
               <p v-if="walletErrorMessage" class="wallet-menu-error" role="alert">
                 {{ walletErrorMessage }}
@@ -463,7 +571,7 @@ onBeforeUnmount(() => {
             <template v-else>
               <div class="wallet-connection-details">
                 <p class="wallet-provider">
-                  {{ walletConnection.provider === 'keplr' ? 'Keplr' : 'Leap' }}
+                  {{ walletProviderLabel(walletConnection.provider) }}
                 </p>
                 <div class="wallet-address-row">
                   <SurfaceReference v-if="walletReference" :reference="walletReference" />
@@ -613,6 +721,102 @@ onBeforeUnmount(() => {
                   </AnimatePresence>
                 </p>
               </header>
+              <section class="identity-request" aria-labelledby="identity-request-title">
+                <div class="identity-request-heading">
+                  <p class="identity-request-kicker">IDENTITY REQUEST</p>
+                  <h2 id="identity-request-title">Establish an identity.</h2>
+                  <p>
+                    An identity is established by a wallet controller and recorded on the selected
+                    network.
+                  </p>
+                </div>
+
+                <div v-if="!walletConnection" class="identity-request-connect">
+                  <p>A wallet controller is required to initiate an identity request.</p>
+                  <button
+                    class="identity-request-connect-action"
+                    type="button"
+                    :disabled="walletTriggerDisabled"
+                    @click="requestWalletConnection"
+                  >
+                    CONNECT WALLET
+                  </button>
+                </div>
+
+                <form
+                  v-else
+                  class="identity-request-form"
+                  @submit.prevent="submitIdentityRequest()"
+                >
+                  <p class="identity-request-controller">
+                    CONTROLLER <code>{{ shortenWalletAddress(walletConnection.address) }}</code>
+                  </p>
+                  <label>
+                    <span>NAME · REQUIRED</span>
+                    <input
+                      v-model="identityName"
+                      name="identity-name"
+                      autocomplete="off"
+                      required
+                      :disabled="identityRequestSubmitting"
+                    />
+                  </label>
+                  <label>
+                    <span>DESCRIPTION · REQUIRED</span>
+                    <textarea
+                      v-model="identityDescription"
+                      name="identity-description"
+                      rows="3"
+                      required
+                      :disabled="identityRequestSubmitting"
+                    />
+                  </label>
+                  <p v-if="!identityRequestConfigured" class="identity-request-error" role="alert">
+                    Identity creation is not available on the selected network.
+                  </p>
+                  <button
+                    class="identity-request-submit"
+                    type="submit"
+                    :disabled="
+                      !identityRequestReady ||
+                      !identityRequestConfigured ||
+                      identityRequestSubmitting
+                    "
+                  >
+                    {{
+                      identityRequestSubmitting ? 'AWAITING SIGNATURE' : 'SIGN IDENTITY CREATION'
+                    }}
+                  </button>
+                  <p
+                    v-if="identityRequestSubmitting"
+                    class="identity-request-status is-pending"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <span aria-hidden="true"></span> Awaiting wallet signature.
+                  </p>
+                  <div
+                    v-if="identityRequestState === 'submitted'"
+                    class="identity-request-status"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <p class="identity-request-status-label">IDENTITY REQUEST SUBMITTED</p>
+                    <p>Transaction submitted to the selected network.</p>
+                    <SurfaceReference
+                      v-if="submittedTransactionReference"
+                      :reference="submittedTransactionReference"
+                    />
+                    <p>
+                      Surface will observe any resulting identity record. You may initiate another
+                      request now.
+                    </p>
+                  </div>
+                  <p v-else-if="identityRequestError" class="identity-request-error" role="alert">
+                    {{ identityRequestError }}
+                  </p>
+                </form>
+              </section>
             </div>
           </section>
 

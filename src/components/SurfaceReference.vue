@@ -237,7 +237,9 @@ onBeforeUnmount(() => {
     >
       <span class="surface-reference-trigger-text">{{ reference.display }}</span>
     </button>
+  </span>
 
+  <Teleport to="body">
     <Transition name="surface-reference-popover">
       <section
         v-if="isOpen && !isMobile"
@@ -289,7 +291,7 @@ onBeforeUnmount(() => {
         </div>
       </section>
     </Transition>
-  </span>
+  </Teleport>
 
   <Teleport to="body">
     <div v-if="isOpen && isMobile" class="surface-reference-backdrop" @click.self="close">

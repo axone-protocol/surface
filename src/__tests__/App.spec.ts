@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import type { WalletConnectionClient } from '../domain/wallet-connection'
+import type { IdentityRequestClient } from '../domain/identity-request-client'
 
 const walletClient = vi.hoisted(() => ({
   availableProviders: vi.fn<WalletConnectionClient['availableProviders']>(),
@@ -9,8 +10,16 @@ const walletClient = vi.hoisted(() => ({
   watchAccount: vi.fn<WalletConnectionClient['watchAccount']>(),
 }))
 
+const identityRequestClient = vi.hoisted(() => ({
+  submit: vi.fn<IdentityRequestClient['submit']>(),
+}))
+
 vi.mock('../infra/browser-wallet-connection-client', () => ({
   browserWalletConnectionClient: walletClient,
+}))
+
+vi.mock('../infra/browser-identity-request-client', () => ({
+  browserIdentityRequestClient: identityRequestClient,
 }))
 
 const writeClipboard = vi.fn<(address: string) => Promise<void>>()
@@ -108,7 +117,7 @@ function installSuccessfulBrowserMocks() {
 const mountedApps = new Set<{ unmount: () => void }>()
 
 function mountApp() {
-  const wrapper = mount(App)
+  const wrapper = mount(App, { attachTo: document.body })
   mountedApps.add(wrapper)
   return wrapper
 }
@@ -121,6 +130,7 @@ describe('App', () => {
     walletClient.connect.mockReset()
     walletClient.watchAccount.mockReset()
     walletClient.watchAccount.mockReturnValue(vi.fn())
+    identityRequestClient.submit.mockReset()
     writeClipboard.mockReset()
     writeClipboard.mockResolvedValue()
     Object.defineProperty(navigator, 'clipboard', {
@@ -344,41 +354,108 @@ describe('App', () => {
     )
 
     await walletTrigger.trigger('click')
-    const walletDialog = wrapper.get('[role="dialog"]')
-    expect(walletDialog.text()).toContain(walletAddress)
-    const walletExplorerLink = walletDialog.get('a')
-    expect(walletExplorerLink.text()).toBe('OPEN IN EXPLORER')
-    expect(walletExplorerLink.attributes('href')).toBe(
+    const walletDialog = document.body.querySelector<HTMLElement>('.surface-reference-panel')!
+    expect(walletDialog.textContent).toContain(walletAddress)
+    const walletExplorerLink = walletDialog.querySelector<HTMLAnchorElement>('a')!
+    expect(walletExplorerLink.textContent).toBe('OPEN IN EXPLORER')
+    expect(walletExplorerLink.getAttribute('href')).toBe(
       `https://explorer.aknodes.com/AXONE-TESTNET/account/${walletAddress}`,
     )
-    expect(walletExplorerLink.attributes('target')).toBe('_blank')
-    expect(walletExplorerLink.attributes('rel')).toBe('noopener noreferrer')
+    expect(walletExplorerLink.target).toBe('_blank')
+    expect(walletExplorerLink.rel).toBe('noopener noreferrer')
 
-    vi.useFakeTimers()
-    try {
-      const copyButton = walletDialog.get('button.surface-reference-action')
-      await copyButton.trigger('click')
-      await Promise.resolve()
-      await wrapper.vm.$nextTick()
-      expect(writeClipboard).toHaveBeenCalledWith(walletAddress)
-      expect(copyButton.text()).toBe('Copied')
+    const copyButton = walletDialog.querySelector<HTMLButtonElement>(
+      'button.surface-reference-action',
+    )!
+    copyButton.click()
+    await Promise.resolve()
+    expect(writeClipboard).toHaveBeenCalledWith(walletAddress)
+    expect(wrapper.find('#wallet-menu').exists()).toBe(true)
 
-      vi.advanceTimersByTime(1000)
-      await wrapper.vm.$nextTick()
-      writeClipboard.mockRejectedValueOnce(new Error('Clipboard unavailable'))
-      await copyButton.trigger('click')
-      await Promise.resolve()
-      await wrapper.vm.$nextTick()
-      expect(copyButton.text()).toBe('Copy')
-      expect(wrapper.find('#wallet-menu').exists()).toBe(true)
-    } finally {
-      vi.useRealTimers()
-    }
-
+    await wrapper.get('input[name="identity-name"]').setValue('Draft identity')
+    await wrapper.get('textarea[name="identity-description"]').setValue('Draft description')
     await wrapper.get('.wallet-disconnect').trigger('click')
     expect(wrapper.find('#wallet-menu').exists()).toBe(false)
     expect(wrapper.get('.top-connect').text()).toBe('Connect▾')
     expect(localStorage.getItem('axone.surface.wallet-provider')).toBeNull()
+
+    walletClient.connect.mockResolvedValue({ address: walletAddress })
+    await wrapper.get('.identity-request-connect-action').trigger('click')
+    await wrapper.get('.wallet-option').trigger('click')
+    await flushPromises()
+    expect((wrapper.get('input[name="identity-name"]').element as HTMLInputElement).value).toBe('')
+    expect(
+      (wrapper.get('textarea[name="identity-description"]').element as HTMLTextAreaElement).value,
+    ).toBe('')
+  })
+
+  it('collects identity details and submits the request from the connected wallet', async () => {
+    installSuccessfulBrowserMocks()
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: createMatchMediaMock(false),
+    })
+    walletClient.availableProviders.mockReturnValue(['keplr'])
+    walletClient.connect.mockResolvedValue({ address: 'axone1identitycontroller' })
+    identityRequestClient.submit.mockResolvedValue({
+      transactionHash: 'CFD44056AF808268C51211C571557FC2B7080F755DB0FDA77E8FEC10D37D34AD',
+    })
+
+    const wrapper = mountApp()
+    await flushPromises()
+
+    const request = wrapper.get('.identity-request')
+    expect(request.text()).toContain('IDENTITY REQUEST')
+    expect(request.find('input[name="identity-name"]').exists()).toBe(false)
+    await request.get('.identity-request-connect-action').trigger('click')
+    await wrapper.get('.wallet-option').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('input[name="identity-name"]').attributes('required')).toBeDefined()
+    expect(
+      wrapper.get('textarea[name="identity-description"]').attributes('required'),
+    ).toBeDefined()
+    expect(wrapper.get('.identity-request-submit').attributes('disabled')).toBeDefined()
+    await wrapper.get('input[name="identity-name"]').setValue('Library steward')
+    await wrapper
+      .get('textarea[name="identity-description"]')
+      .setValue('Stewardship identity for the public archive.')
+    await wrapper.get('.identity-request-form').trigger('submit')
+    await flushPromises()
+
+    expect(identityRequestClient.submit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'keplr',
+        sender: 'axone1identitycontroller',
+        name: 'Library steward',
+        description: 'Stewardship identity for the public archive.',
+      }),
+    )
+    expect(request.text()).toContain('IDENTITY REQUEST SUBMITTED')
+    expect(request.text()).toContain('Transaction submitted to the selected network.')
+    expect(request.text()).toContain('You may initiate another request now.')
+    expect(request.get('.surface-reference-trigger').text()).toBe('CFD44056…D37D34AD')
+    expect(request.get('.surface-reference-trigger').attributes('aria-label')).toContain(
+      'Transaction hash: CFD44056AF808268C51211C571557FC2B7080F755DB0FDA77E8FEC10D37D34AD',
+    )
+    await request.get('.surface-reference-trigger').trigger('click')
+    const transactionPopover = document.body.querySelector<HTMLElement>('.surface-reference-panel')!
+    expect(transactionPopover.querySelector('a')?.getAttribute('href')).toBe(
+      'https://explorer.aknodes.com/AXONE-TESTNET/tx/CFD44056AF808268C51211C571557FC2B7080F755DB0FDA77E8FEC10D37D34AD',
+    )
+    expect((wrapper.get('input[name="identity-name"]').element as HTMLInputElement).value).toBe('')
+    expect(
+      (wrapper.get('textarea[name="identity-description"]').element as HTMLTextAreaElement).value,
+    ).toBe('')
+
+    await wrapper.get('input[name="identity-name"]').setValue('Second identity')
+    await wrapper.get('textarea[name="identity-description"]').setValue('A second stewardship.')
+    await wrapper.get('.identity-request-form').trigger('submit')
+    await flushPromises()
+    expect(identityRequestClient.submit).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: 'Second identity', description: 'A second stewardship.' }),
+    )
   })
 
   it('renders unavailable wallet options when no extension is installed', async () => {

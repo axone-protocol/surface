@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import SurfaceReference from '../SurfaceReference.vue'
 
 const walletAddress = 'axone1lfcc2yt3gmd3xspw5yxsl3r9qyuumuya6hur2gnejgmafyrapmkqhg7gd5'
+const mountedReferences: Array<{ unmount: () => void }> = []
 
 function stubMatchMedia(matches: boolean) {
   vi.stubGlobal(
@@ -19,6 +20,7 @@ function stubMatchMedia(matches: boolean) {
 
 describe('SurfaceReference', () => {
   afterEach(() => {
+    mountedReferences.splice(0).forEach((wrapper) => wrapper.unmount())
     vi.useRealTimers()
     vi.unstubAllGlobals()
     document.body.innerHTML = ''
@@ -42,6 +44,7 @@ describe('SurfaceReference', () => {
         },
       },
     })
+    mountedReferences.push(wrapper)
 
     const trigger = wrapper.get('.surface-reference-trigger')
     expect(trigger.attributes('aria-haspopup')).toBe('dialog')
@@ -50,27 +53,30 @@ describe('SurfaceReference', () => {
 
     await trigger.trigger('click')
 
-    const dialog = wrapper.get('[role="dialog"]')
-    expect(dialog.classes()).toContain('surface-reference-panel--below')
+    const dialog = document.body.querySelector<HTMLElement>('.surface-reference-panel')!
+    expect(dialog.classList).toContain('surface-reference-panel--below')
     expect(trigger.attributes('aria-expanded')).toBe('true')
-    expect(dialog.text()).toContain('Transaction hash')
-    expect(dialog.find('.surface-reference-verification').exists()).toBe(false)
-    expect(dialog.text()).toContain('34BB1E16A4051234567890ABCDEF8A931F')
-    const link = dialog.get('a')
-    expect(link.attributes('target')).toBe('_blank')
-    expect(link.attributes('rel')).toBe('noopener noreferrer')
+    expect(dialog.textContent).toContain('Transaction hash')
+    expect(dialog.querySelector('.surface-reference-verification')).toBeNull()
+    expect(dialog.textContent).toContain('34BB1E16A4051234567890ABCDEF8A931F')
+    const link = dialog.querySelector<HTMLAnchorElement>('a')!
+    expect(link.target).toBe('_blank')
+    expect(link.rel).toBe('noopener noreferrer')
 
-    await dialog.get('button.surface-reference-action').trigger('click')
+    const copyButton = dialog.querySelector<HTMLButtonElement>('button.surface-reference-action')!
+    copyButton.click()
     await Promise.resolve()
+    await nextTick()
     expect(writeText).toHaveBeenCalledWith('34BB1E16A4051234567890ABCDEF8A931F')
-    expect(dialog.get('button.surface-reference-action').text()).toBe('Copied')
+    expect(copyButton.textContent).toBe('Copied')
     vi.advanceTimersByTime(1000)
     await nextTick()
-    expect(dialog.get('button.surface-reference-action').text()).toBe('Copy')
+    expect(copyButton.textContent).toBe('Copy')
   })
 
   it('keeps same-origin navigation in context and omits missing destinations', async () => {
     const wrapper = mount(SurfaceReference, {
+      attachTo: document.body,
       props: {
         reference: {
           designation: 'Constitution hash',
@@ -80,11 +86,13 @@ describe('SurfaceReference', () => {
         },
       },
     })
+    mountedReferences.push(wrapper)
 
     await wrapper.get('.surface-reference-trigger').trigger('click')
-    const sameOriginLink = wrapper.get('[role="dialog"] a')
-    expect(sameOriginLink.attributes('target')).toBeUndefined()
-    expect(sameOriginLink.attributes('rel')).toBeUndefined()
+    const dialog = document.body.querySelector<HTMLElement>('.surface-reference-panel')!
+    const sameOriginLink = dialog.querySelector<HTMLAnchorElement>('a')!
+    expect(sameOriginLink.getAttribute('target')).toBeNull()
+    expect(sameOriginLink.getAttribute('rel')).toBeNull()
 
     await wrapper.setProps({
       reference: {
@@ -93,8 +101,8 @@ describe('SurfaceReference', () => {
         display: 'CRED-1234567…ABCDEF',
       },
     })
-    expect(wrapper.get('[role="dialog"]').find('a').exists()).toBe(false)
-    expect(wrapper.get('.surface-reference-actions').classes()).toContain(
+    expect(dialog.querySelector('a')).toBeNull()
+    expect(dialog.querySelector('.surface-reference-actions')?.classList).toContain(
       'surface-reference-actions--single',
     )
   })
@@ -107,6 +115,7 @@ describe('SurfaceReference', () => {
     vi.stubGlobal('cancelAnimationFrame', vi.fn())
     let triggerTop = 100
     const wrapper = mount(SurfaceReference, {
+      attachTo: document.body,
       props: {
         reference: {
           designation: 'Transaction hash',
@@ -115,6 +124,7 @@ describe('SurfaceReference', () => {
         },
       },
     })
+    mountedReferences.push(wrapper)
     const trigger = wrapper.get('.surface-reference-trigger')
     vi.spyOn(trigger.element, 'getBoundingClientRect').mockImplementation(
       () =>
@@ -129,15 +139,14 @@ describe('SurfaceReference', () => {
     )
 
     await trigger.trigger('click')
-    const dialog = wrapper.get('[role="dialog"]')
-    const dialogElement = dialog.element as HTMLElement
-    expect(dialogElement.style.top).toBe('132px')
+    const dialog = document.body.querySelector<HTMLElement>('.surface-reference-panel')!
+    expect(dialog.style.top).toBe('132px')
 
     triggerTop = 300
     document.dispatchEvent(new Event('scroll'))
     await nextTick()
 
-    expect(dialogElement.style.top).toBe('332px')
+    expect(dialog.style.top).toBe('332px')
   })
 
   it('restores Copy after clipboard rejection and closes on Escape or outside click', async () => {
@@ -151,23 +160,25 @@ describe('SurfaceReference', () => {
         reference: { designation: 'Credential identifier', value: 'cred-1', display: 'cred-1' },
       },
     })
+    mountedReferences.push(wrapper)
 
     const trigger = wrapper.get('.surface-reference-trigger')
     await trigger.trigger('click')
-    await wrapper.get('button.surface-reference-action').trigger('click')
+    const dialog = document.body.querySelector<HTMLElement>('.surface-reference-panel')!
+    dialog.querySelector<HTMLButtonElement>('button.surface-reference-action')!.click()
     await Promise.resolve()
     await nextTick()
-    expect(wrapper.get('button.surface-reference-action').text()).toBe('Copy')
+    expect(dialog.querySelector('button.surface-reference-action')?.textContent).toBe('Copy')
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
     await nextTick()
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(document.body.querySelector('.surface-reference-panel')).toBeNull()
     expect(document.activeElement).toBe(trigger.element)
 
     await trigger.trigger('click')
     document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await nextTick()
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(document.body.querySelector('.surface-reference-panel')).toBeNull()
     expect(document.activeElement).toBe(trigger.element)
   })
 
@@ -187,6 +198,7 @@ describe('SurfaceReference', () => {
         },
       },
     })
+    mountedReferences.push(wrapper)
 
     const trigger = wrapper.get('.surface-reference-trigger')
     await trigger.trigger('click')

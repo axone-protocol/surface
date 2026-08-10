@@ -71,6 +71,7 @@ describe('SurfaceActStream', () => {
       'did:pkh:cosmos:axone-dendrite-2:cosmos1s7uksna4686k27cg6gneqltxx4yjsscs3p7ztvvned6j2thjjthstexh8c'
     const subject = 'urn:axone:testnet:subject:gh31175346323a1-1'
     const wrapper = mount(SurfaceActLine, {
+      attachTo: document.body,
       props: {
         act: {
           ...makeAct('TX-DID', 1, 'axone1issuer'),
@@ -116,7 +117,8 @@ describe('SurfaceActStream', () => {
     )
     expect(wrapper.text()).not.toContain(issuer)
     await identifiers[0]!.trigger('click')
-    expect(wrapper.get('[role="dialog"]').text()).toContain(issuer)
+    expect(document.body.querySelector('.surface-reference-panel')?.textContent).toContain(issuer)
+    wrapper.unmount()
   })
 
   it('keeps an incompletely typed reference noninteractive', async () => {
@@ -226,6 +228,7 @@ describe('SurfaceActStream', () => {
     vi.stubGlobal('navigator', { clipboard: { writeText } })
     const txhash = '34BB1E16A4051234567890ABCDEF8A931F'
     const wrapper = mount(SurfaceActLine, {
+      attachTo: document.body,
       props: {
         act: makeAct(txhash, 1, 'axone1issuer'),
         explorer: testExplorer,
@@ -239,23 +242,26 @@ describe('SurfaceActStream', () => {
     expect(transactionTrigger.text()).toBe('34BB1E16…EF8A931F')
     await transactionTrigger.trigger('click')
 
-    const dialog = wrapper.get('[role="dialog"]')
-    expect(dialog.text()).toContain('Exhibit · TX HASH')
-    expect(dialog.get('.surface-reference-verification').text()).toBe('Verified')
-    expect(dialog.text()).toContain(txhash)
-    const explorerLink = dialog.get('a')
-    expect(explorerLink.text()).toBe('OPEN IN EXPLORER')
-    expect(explorerLink.attributes('href')).toBe(`${testExplorer}/tx/${txhash}`)
-    expect(explorerLink.attributes('target')).toBe('_blank')
-    expect(explorerLink.attributes('rel')).toBe('noopener noreferrer')
+    const dialog = document.body.querySelector<HTMLElement>('.surface-reference-panel')!
+    expect(dialog.textContent).toContain('Exhibit · TX HASH')
+    expect(dialog.querySelector('.surface-reference-verification')?.textContent).toBe('Verified')
+    expect(dialog.textContent).toContain(txhash)
+    const explorerLink = dialog.querySelector<HTMLAnchorElement>('a')!
+    expect(explorerLink.textContent).toBe('OPEN IN EXPLORER')
+    expect(explorerLink.getAttribute('href')).toBe(`${testExplorer}/tx/${txhash}`)
+    expect(explorerLink.target).toBe('_blank')
+    expect(explorerLink.rel).toBe('noopener noreferrer')
 
-    await dialog.get('button.surface-reference-action').trigger('click')
+    const copyButton = dialog.querySelector<HTMLButtonElement>('button.surface-reference-action')!
+    copyButton.click()
     await Promise.resolve()
+    await nextTick()
     expect(writeText).toHaveBeenCalledWith(txhash)
-    expect(dialog.get('button.surface-reference-action').text()).toBe('Copied')
+    expect(copyButton.textContent).toBe('Copied')
     vi.advanceTimersByTime(1000)
     await nextTick()
-    expect(dialog.get('button.surface-reference-action').text()).toBe('Copy')
+    expect(copyButton.textContent).toBe('Copy')
+    wrapper.unmount()
   })
 
   it('reveals exactly one record assertion at a time', async () => {
