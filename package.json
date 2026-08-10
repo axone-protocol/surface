@@ -26,8 +26,11 @@
         "check": "run-s lint test:unit build"
     },
     "dependencies": {
+        "@cosmjs/proto-signing": "0.38.1",
+        "@cosmjs/stargate": "0.38.1",
         "@vueuse/core": "^14.4.0",
         "bech32": "^2.0.0",
+        "cosmjs-types": "0.11.0",
         "motion-v": "^2.3.0",
         "pixi.js": "^8.19.0",
         "vue": "^3.5.38"
