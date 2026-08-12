@@ -7,9 +7,7 @@ import SurfaceActStream from './components/SurfaceActStream.vue'
 import SurfaceDropdown from './components/SurfaceDropdown.vue'
 import SurfaceReference from './components/SurfaceReference.vue'
 import { isIdentityRequestComplete } from './domain/identity-request'
-import type { IdentityRequestClient } from './domain/identity-request-client'
 import type { SurfaceReference as SurfaceReferenceModel } from './domain/surface-reference'
-import { browserIdentityRequestClient } from './infra/browser-identity-request-client'
 import { shortenHash, shortenWalletAddress } from './lib/shorten'
 import { useSurfaceActs } from './composables/useSurfaceActs'
 import { useWalletConnection } from './composables/useWalletConnection'
@@ -229,7 +227,7 @@ function clearIdentityRequest() {
   submittedTransactionHash.value = null
 }
 
-async function submitIdentityRequest(client: IdentityRequestClient = browserIdentityRequestClient) {
+async function submitIdentityRequest() {
   if (
     !walletConnection.value ||
     !identityRequestReady.value ||
@@ -244,7 +242,8 @@ async function submitIdentityRequest(client: IdentityRequestClient = browserIden
   submittedTransactionHash.value = null
 
   try {
-    const submitted = await client.submit({
+    const { browserIdentityRequestClient } = await import('./infra/browser-identity-request-client')
+    const submitted = await browserIdentityRequestClient.submit({
       provider: walletConnection.value.provider,
       sender: walletConnection.value.address,
       network: selectedNetwork.value,
