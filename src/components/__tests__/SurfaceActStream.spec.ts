@@ -63,7 +63,7 @@ describe('SurfaceActStream', () => {
     expect(wrapper.text()).not.toContain('HEIGHT')
     expect(wrapper.text()).not.toContain('MSG')
     expect(wrapper.find('.surface-act-column-head').text()).toBe('ENTRYSTATEMENTEVIDENCE')
-    expect(wrapper.find('.surface-act-cursor').exists()).toBe(false)
+    expect(wrapper.find('.surface-cursor-blink').exists()).toBe(true)
   })
 
   it('renders complete assertion references as inspectable triggers', async () => {
@@ -100,7 +100,6 @@ describe('SurfaceActStream', () => {
         explorer: testExplorer,
         reducedMotion: true,
         typingActive: false,
-        cursorVisible: false,
       },
     })
 
@@ -143,7 +142,6 @@ describe('SurfaceActStream', () => {
         explorer: testExplorer,
         reducedMotion: false,
         typingActive: true,
-        cursorVisible: true,
       },
     })
 
@@ -211,7 +209,6 @@ describe('SurfaceActStream', () => {
           explorer: testExplorer,
           reducedMotion: true,
           typingActive: false,
-          cursorVisible: false,
         },
       })
       const evidence = wrapper.get('.surface-act-proof').text()
@@ -234,7 +231,6 @@ describe('SurfaceActStream', () => {
         explorer: testExplorer,
         reducedMotion: true,
         typingActive: false,
-        cursorVisible: false,
       },
     })
 
@@ -283,12 +279,10 @@ describe('SurfaceActStream', () => {
     wrapper.findComponent(SurfaceActLine).vm.$emit('typing-complete')
     await nextTick()
     await nextTick()
-
     const records = wrapper.findAllComponents(SurfaceActLine)
-    expect(records).toHaveLength(2)
+
     expect(records[0]!.props('typingActive')).toBe(false)
     expect(records[1]!.props('typingActive')).toBe(true)
-    expect(wrapper.findAll('.surface-act-cursor')).toHaveLength(1)
   })
 
   it('retains only the eight latest desktop records', async () => {

@@ -14,7 +14,6 @@ const props = defineProps<{
   act: SurfaceAct
   reducedMotion: boolean
   typingActive: boolean
-  cursorVisible: boolean
   explorer: string
 }>()
 
@@ -136,7 +135,6 @@ onBeforeUnmount(stopTyping)
           </span>
           <template v-else>{{ part.value }}</template>
         </template>
-        <span v-if="cursorVisible" class="surface-act-cursor" aria-hidden="true" />
       </p>
     </div>
 

@@ -132,7 +132,9 @@ function sessionLabel(entry: DocketSessionEntry) {
 <template>
   <section class="surface-docket" aria-labelledby="surface-docket-title">
     <header class="surface-docket-head">
-      <h2 id="surface-docket-title">DOCKET</h2>
+      <h2 id="surface-docket-title">
+        DOCKET <span class="surface-cursor-blink" aria-hidden="true" />
+      </h2>
     </header>
 
     <div class="surface-docket-register">

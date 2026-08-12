@@ -59,6 +59,7 @@ describe('SurfaceDocket', () => {
     expect(wrapper.text()).toContain('2026-08-12 12:32 UTC')
     expect(wrapper.text()).toContain('TRANSACTION SUBMITTED')
     expect(wrapper.text()).toContain('TIMEACTIVITYSITUATION')
+    expect(wrapper.find('.surface-cursor-blink').exists()).toBe(true)
     expect(wrapper.get('.surface-docket-kind').text()).toBe('IDENTITY CREATION')
     expect(wrapper.text()).toContain('CONTROLLER CONNECTED')
     expect(wrapper.text()).toContain('axone-dendrite-2')

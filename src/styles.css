@@ -1701,6 +1701,9 @@
 
   .surface-act-stream-head p,
   .surface-docket h2 {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
     margin: 0;
     color: var(--color-surface-dim);
     font-family: 'IBM Plex Mono', monospace;
@@ -1948,17 +1951,16 @@
     margin: 0;
   }
 
-  .surface-act-cursor {
+  .surface-cursor-blink {
     display: inline-block;
-    width: 1px;
-    height: 0.98em;
-    margin-left: 2px;
-    vertical-align: -0.12em;
-    background: var(--color-surface-text);
-    animation: surface-act-cursor-blink 900ms steps(1, end) infinite;
+    width: 6px;
+    height: 12px;
+    vertical-align: -0.08em;
+    background: var(--color-surface-gold);
+    animation: surface-cursor-blink 1.1s step-end infinite;
   }
 
-  .is-reduced-motion .surface-act-cursor {
+  .is-reduced-motion .surface-cursor-blink {
     animation: none;
   }
 
@@ -2036,7 +2038,7 @@
   }
 }
 
-@keyframes surface-act-cursor-blink {
+@keyframes surface-cursor-blink {
   0%,
   49% {
     opacity: 1;

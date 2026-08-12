@@ -30,7 +30,6 @@ const registerTransition = computed(() =>
 const visibleActs = ref<SurfaceAct[]>([])
 const pendingActs = ref<SurfaceAct[]>([])
 const typingActId = ref<string | undefined>()
-const cursorActId = ref<string | undefined>()
 const knownActIds = new Set<string>()
 const compactViewport = ref(false)
 const registerActWindowSize = computed(() =>
@@ -100,13 +99,10 @@ async function drainVisibleActs() {
       const next = pendingActs.value[0]!
       pendingActs.value = pendingActs.value.slice(1)
       visibleActs.value = [...visibleActs.value, next].slice(-registerActWindowSize.value)
-
       if (props.reducedMotion) {
-        cursorActId.value = undefined
         continue
       }
 
-      cursorActId.value = next.id
       typingActId.value = next.id
       await new Promise<void>((resolve) => {
         drainResolver = resolve
@@ -146,7 +142,6 @@ watch(
     if (props.reducedMotion) {
       const acts = currentActs()
       visibleActs.value = acts
-      cursorActId.value = undefined
       pendingActs.value = []
       knownActIds.clear()
       acts.forEach((act) => knownActIds.add(act.id))
@@ -190,7 +185,9 @@ onBeforeUnmount(() => {
 <template>
   <section class="surface-act-stream" aria-labelledby="surface-act-stream-title">
     <header class="surface-act-stream-head">
-      <p id="surface-act-stream-title">CHAIN REGISTER</p>
+      <p id="surface-act-stream-title">
+        CHAIN REGISTER <span class="surface-cursor-blink" aria-hidden="true" />
+      </p>
     </header>
 
     <div class="surface-act-column-head" aria-hidden="true">
@@ -219,7 +216,6 @@ onBeforeUnmount(() => {
               :explorer="explorer"
               :reducedMotion="reducedMotion"
               :typing-active="typingActId === act.id"
-              :cursor-visible="cursorActId === act.id"
               @typing-complete="completeTyping(act.id)"
             />
           </motion.li>
