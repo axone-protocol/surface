@@ -54,7 +54,7 @@ describe('SurfaceDocket', () => {
     ]
     const wrapper = mount(SurfaceDocket, { attachTo: document.body, props: { entries } })
 
-    expect(wrapper.text()).toContain('CURRENT ACTIVITY')
+    expect(wrapper.text()).toContain('DOCKET')
     expect(wrapper.text()).toContain('forge-01')
     expect(wrapper.text()).toContain('2026-08-12 12:32 UTC')
     expect(wrapper.text()).toContain('TRANSACTION SUBMITTED')

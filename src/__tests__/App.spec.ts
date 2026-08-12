@@ -372,6 +372,7 @@ describe('App', () => {
     expect(writeClipboard).toHaveBeenCalledWith(walletAddress)
     expect(wrapper.find('#wallet-menu').exists()).toBe(true)
 
+    await wrapper.get('.identity-request-connect-action').trigger('click')
     await wrapper.get('input[name="identity-name"]').setValue('Draft identity')
     await wrapper.get('textarea[name="identity-description"]').setValue('Draft description')
     await wrapper.get('.wallet-disconnect').trigger('click')
@@ -383,6 +384,9 @@ describe('App', () => {
     await wrapper.get('.identity-request-connect-action').trigger('click')
     await wrapper.get('.wallet-option').trigger('click')
     await flushPromises()
+    expect(wrapper.find('input[name="identity-name"]').exists()).toBe(false)
+    expect(wrapper.get('.identity-request-connect-action').text()).toBe('NEW IDENTITY REQUEST')
+    await wrapper.get('.identity-request-connect-action').trigger('click')
     expect((wrapper.get('input[name="identity-name"]').element as HTMLInputElement).value).toBe('')
     expect(
       (wrapper.get('textarea[name="identity-description"]').element as HTMLTextAreaElement).value,
@@ -406,14 +410,15 @@ describe('App', () => {
 
     const wrapper = mountApp()
     await flushPromises()
-
     const request = wrapper.get('.identity-request')
-    expect(request.text()).toContain('IDENTITY REQUEST')
     expect(request.find('input[name="identity-name"]').exists()).toBe(false)
     await request.get('.identity-request-connect-action').trigger('click')
     await wrapper.get('.wallet-option').trigger('click')
     await flushPromises()
 
+    expect(request.find('input[name="identity-name"]').exists()).toBe(false)
+    expect(request.get('.identity-request-connect-action').text()).toBe('NEW IDENTITY REQUEST')
+    await request.get('.identity-request-connect-action').trigger('click')
     expect(wrapper.get('input[name="identity-name"]').attributes('required')).toBeDefined()
     expect(
       wrapper.get('textarea[name="identity-description"]').attributes('required'),
@@ -435,9 +440,9 @@ describe('App', () => {
       }),
     )
     expect(request.text()).toContain('REQUEST ADDED TO DOCKET')
-    expect(request.get('.identity-request-submit').text()).toBe('CREATE ANOTHER IDENTITY')
+    expect(request.get('.identity-request-submit').text()).toBe('NEW IDENTITY REQUEST')
     const docket = wrapper.get('.surface-docket')
-    expect(docket.text()).toContain('CURRENT ACTIVITY')
+    expect(docket.text()).toContain('DOCKET')
     expect(docket.text()).toContain('Library steward')
     expect(docket.text()).toContain('TRANSACTION SUBMITTED')
     const transactionTrigger = docket.get('[aria-label^="Inspect Transaction hash:"]')
@@ -459,7 +464,7 @@ describe('App', () => {
     expect(wrapper.get('input[name="identity-name"]').attributes('disabled')).toBeDefined()
 
     await wrapper.get('.identity-request-submit').trigger('click')
-    expect(wrapper.get('.identity-request-submit').text()).toBe('SIGN IDENTITY CREATION')
+    expect(wrapper.get('.identity-request-submit').text()).toBe('SIGN REQUEST')
     expect((wrapper.get('input[name="identity-name"]').element as HTMLInputElement).value).toBe('')
     expect(
       (wrapper.get('textarea[name="identity-description"]').element as HTMLTextAreaElement).value,
@@ -499,6 +504,7 @@ describe('App', () => {
     await wrapper.get('.identity-request-connect-action').trigger('click')
     await wrapper.get('.wallet-option').trigger('click')
     await flushPromises()
+    await wrapper.get('.identity-request-connect-action').trigger('click')
     await wrapper.get('input[name="identity-name"]').setValue('Failed identity')
     await wrapper.get('textarea[name="identity-description"]').setValue('Failure evidence.')
     await wrapper.get('.identity-request-form').trigger('submit')
@@ -529,6 +535,7 @@ describe('App', () => {
     await wrapper.get('.identity-request-connect-action').trigger('click')
     await wrapper.get('.wallet-option').trigger('click')
     await flushPromises()
+    await wrapper.get('.identity-request-connect-action').trigger('click')
     await wrapper.get('input[name="identity-name"]').setValue('Rejected identity')
     await wrapper.get('textarea[name="identity-description"]').setValue('Rejected locally.')
     await wrapper.get('.identity-request-form').trigger('submit')

@@ -44,6 +44,7 @@ const walletMenuOpen = ref(false)
 const identityName = ref('')
 const identityDescription = ref('')
 const identityRequestState = ref<'idle' | 'submitting' | 'submitted' | 'error'>('idle')
+const identityRequestComposing = ref(false)
 const identityRequestError = ref<string | null>(null)
 const docketAttention = ref(false)
 const surfaceActionsEl = ref<HTMLElement | null>(null)
@@ -226,11 +227,21 @@ function clearIdentityRequestDraft() {
 function clearIdentityRequest() {
   clearIdentityRequestDraft()
   identityRequestState.value = 'idle'
+  identityRequestComposing.value = false
   identityRequestError.value = null
 }
 
+function beginIdentityRequest() {
+  if (walletConnection.value) {
+    identityRequestComposing.value = true
+  }
+}
+
 function beginAnotherIdentityRequest() {
-  clearIdentityRequest()
+  clearIdentityRequestDraft()
+  identityRequestState.value = 'idle'
+  identityRequestComposing.value = true
+  identityRequestError.value = null
 }
 
 function signalDocketActivity() {
@@ -783,22 +794,21 @@ onBeforeUnmount(() => {
                 <div class="identity-request-heading">
                   <p class="identity-request-kicker">IDENTITY REQUEST</p>
                   <h2 id="identity-request-title">Establish an identity.</h2>
-                  <p>Make a name and purpose legible on the network.</p>
                 </div>
 
-                <div v-if="!walletConnection" class="identity-request-connect">
+                <div v-if="!identityRequestComposing" class="identity-request-connect">
                   <button
                     class="identity-request-connect-action"
                     type="button"
                     :disabled="walletTriggerDisabled"
-                    @click="requestWalletConnection"
+                    @click="walletConnection ? beginIdentityRequest() : requestWalletConnection()"
                   >
-                    CONNECT WALLET
+                    {{ walletConnection ? 'NEW IDENTITY REQUEST' : 'CONNECT WALLET' }}
                   </button>
                 </div>
 
                 <form
-                  v-else
+                  v-else-if="walletConnection"
                   class="identity-request-form"
                   @submit.prevent="submitIdentityRequest()"
                 >
@@ -834,7 +844,7 @@ onBeforeUnmount(() => {
                     type="button"
                     @click="beginAnotherIdentityRequest"
                   >
-                    CREATE ANOTHER IDENTITY
+                    NEW IDENTITY REQUEST
                   </button>
                   <button
                     v-else
@@ -846,9 +856,7 @@ onBeforeUnmount(() => {
                       identityRequestSubmitting
                     "
                   >
-                    {{
-                      identityRequestSubmitting ? 'AWAITING SIGNATURE' : 'SIGN IDENTITY CREATION'
-                    }}
+                    {{ identityRequestSubmitting ? 'AWAITING SIGNATURE' : 'SIGN REQUEST' }}
                   </button>
                   <p
                     v-if="identityRequestSubmitting"

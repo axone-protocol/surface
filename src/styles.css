@@ -1309,16 +1309,6 @@
     line-height: 0.98;
   }
 
-  .identity-request-heading > p:last-child,
-  .identity-request-connect > p {
-    margin: 0;
-    color: var(--color-surface-muted);
-    font-family: var(--font-display);
-    font-size: 1.12rem;
-    font-weight: 300;
-    line-height: 1.35;
-  }
-
   .identity-request-connect,
   .identity-request-form {
     display: grid;
