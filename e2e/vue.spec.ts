@@ -167,13 +167,15 @@ test('moves the mobile camera with a touch pointer without horizontal overflow',
     throw new Error('Surface camera is not visible')
   }
 
+  const title = page.locator('h1')
+
   await camera.evaluate((element) => {
     element.setPointerCapture = () => undefined
     element.hasPointerCapture = () => false
   })
   const y = box.y + 160
   const startX = box.x + 280
-  await camera.dispatchEvent('pointerdown', {
+  await title.dispatchEvent('pointerdown', {
     button: 0,
     clientX: startX,
     clientY: y,
@@ -181,7 +183,7 @@ test('moves the mobile camera with a touch pointer without horizontal overflow',
     pointerId: 1,
     pointerType: 'touch',
   })
-  await camera.dispatchEvent('pointermove', {
+  await title.dispatchEvent('pointermove', {
     button: 0,
     clientX: startX - 150,
     clientY: y,
@@ -189,7 +191,7 @@ test('moves the mobile camera with a touch pointer without horizontal overflow',
     pointerId: 1,
     pointerType: 'touch',
   })
-  await camera.dispatchEvent('pointerup', {
+  await title.dispatchEvent('pointerup', {
     button: 0,
     clientX: startX - 150,
     clientY: y,

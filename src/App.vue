@@ -404,6 +404,10 @@ function canPanFrom(event: PointerEvent) {
     return true
   }
 
+  if (event.pointerType === 'touch') {
+    return !target.closest('a, button, input, textarea, select, [contenteditable]')
+  }
+
   return !target.closest(
     'a, button, input, textarea, select, [contenteditable], p, h1, h2, h3, h4, h5, h6, li, code, pre, span',
   )
