@@ -4,12 +4,15 @@ import { usePreferredReducedMotion } from '@vueuse/core'
 import { AnimatePresence, motion, MotionConfig } from 'motion-v'
 
 import SurfaceActStream from './components/SurfaceActStream.vue'
+import SurfaceDocket from './components/SurfaceDocket.vue'
 import SurfaceDropdown from './components/SurfaceDropdown.vue'
 import SurfaceReference from './components/SurfaceReference.vue'
 import { isIdentityRequestComplete } from './domain/identity-request'
+import { isWalletRejection } from './domain/surface-docket'
 import type { SurfaceReference as SurfaceReferenceModel } from './domain/surface-reference'
-import { shortenHash, shortenWalletAddress } from './lib/shorten'
+import { shortenWalletAddress } from './lib/shorten'
 import { useSurfaceActs } from './composables/useSurfaceActs'
+import { useSurfaceDocket, type DocketSessionContext } from './composables/useSurfaceDocket'
 import { useWalletConnection } from './composables/useWalletConnection'
 import type { WalletProviderId } from './domain/wallet-connection'
 import { networks, type Network } from './networks'
@@ -42,9 +45,15 @@ const identityName = ref('')
 const identityDescription = ref('')
 const identityRequestState = ref<'idle' | 'submitting' | 'submitted' | 'error'>('idle')
 const identityRequestError = ref<string | null>(null)
-const submittedTransactionHash = ref<string | null>(null)
+const docketAttention = ref(false)
 const surfaceActionsEl = ref<HTMLElement | null>(null)
 const { acts, loading, error, polling } = useSurfaceActs()
+const {
+  entries: docketEntries,
+  appendIdentityEvent,
+  recordSessionTransition,
+  observeSubmittedTransaction,
+} = useSurfaceDocket(acts)
 const surfaceCameraEl = ref<HTMLElement | null>(null)
 const activeFacetIndex = ref(1)
 const temporaryCameraOffset = ref(0)
@@ -59,6 +68,7 @@ let cameraPointerCanPan = false
 let horizontalWheelSettleTimer: number | undefined
 let actorTimer: number | undefined
 let lawTimer: number | undefined
+let docketAttentionTimer: number | undefined
 
 let documentClickHandler: ((event: MouseEvent) => void) | null = null
 let documentKeydownHandler: ((event: KeyboardEvent) => void) | null = null
@@ -113,6 +123,15 @@ const walletTriggerLabel = computed(() => {
   return walletConnection.value ? 'Connected' : 'Connect'
 })
 const walletTriggerDisabled = computed(() => walletConnectionStatus.value === 'connecting')
+const docketSessionContext = computed<DocketSessionContext | undefined>(() =>
+  walletConnection.value
+    ? {
+        provider: walletConnection.value.provider,
+        controller: walletConnection.value.address,
+        chainId: walletConnection.value.chainId,
+      }
+    : undefined,
+)
 const walletProviderInstallHint = computed(
   () =>
     `Install ${walletProviderOptions.map((provider) => provider.label).join(' or ')} to connect a wallet.`,
@@ -147,22 +166,6 @@ const walletReference = computed<SurfaceReferenceModel | undefined>(() => {
     },
   }
 })
-const submittedTransactionReference = computed<SurfaceReferenceModel | undefined>(() => {
-  if (!submittedTransactionHash.value) {
-    return undefined
-  }
-
-  return {
-    designation: 'Transaction hash',
-    value: submittedTransactionHash.value,
-    display: shortenHash(submittedTransactionHash.value),
-    link: {
-      href: `${selectedNetwork.value.explorer}/tx/${submittedTransactionHash.value}`,
-      label: 'OPEN IN EXPLORER',
-    },
-  }
-})
-
 function selectNetwork(networkKey: Network['key']) {
   const network = networks.find((entry) => entry.key === networkKey)
   if (!network || !network.selectable) {
@@ -224,7 +227,26 @@ function clearIdentityRequest() {
   clearIdentityRequestDraft()
   identityRequestState.value = 'idle'
   identityRequestError.value = null
-  submittedTransactionHash.value = null
+}
+
+function beginAnotherIdentityRequest() {
+  clearIdentityRequest()
+}
+
+function signalDocketActivity() {
+  if (activeFacet.value === 'initiated') {
+    return
+  }
+
+  docketAttention.value = true
+  window.clearTimeout(docketAttentionTimer)
+  docketAttentionTimer = window.setTimeout(() => {
+    docketAttention.value = false
+  }, 4_000)
+}
+
+function acknowledgeIdentityRequest(state: 'submitted' | 'error') {
+  identityRequestState.value = state
 }
 
 async function submitIdentityRequest() {
@@ -237,26 +259,52 @@ async function submitIdentityRequest() {
     return
   }
 
+  const connection = walletConnection.value
+  const network = selectedNetwork.value
+  const name = identityName.value.trim()
+  const description = identityDescription.value.trim()
+  const identityEvent = {
+    name,
+    description,
+    controller: connection.address,
+    provider: connection.provider,
+    networkKey: network.key,
+    chainId: network.chainId,
+    explorer: network.explorer,
+  }
+
   identityRequestState.value = 'submitting'
   identityRequestError.value = null
-  submittedTransactionHash.value = null
+  signalDocketActivity()
 
   try {
     const { browserIdentityRequestClient } = await import('./infra/browser-identity-request-client')
     const submitted = await browserIdentityRequestClient.submit({
-      provider: walletConnection.value.provider,
-      sender: walletConnection.value.address,
-      network: selectedNetwork.value,
-      name: identityName.value,
-      description: identityDescription.value,
+      provider: connection.provider,
+      sender: connection.address,
+      network,
+      name,
+      description,
     })
-    identityRequestState.value = 'submitted'
-    submittedTransactionHash.value = submitted.transactionHash
-    clearIdentityRequestDraft()
+    const docketEntry = appendIdentityEvent({
+      ...identityEvent,
+      situation: 'transaction-submitted',
+      transactionHash: submitted.transactionHash,
+    })
+    void observeSubmittedTransaction(docketEntry.id)
+
+    acknowledgeIdentityRequest('submitted')
   } catch (error) {
-    identityRequestState.value = 'error'
-    identityRequestError.value =
+    const message =
       error instanceof Error ? error.message : 'Identity request could not be submitted.'
+    appendIdentityEvent({
+      ...identityEvent,
+      situation: isWalletRejection(error) ? 'signature-declined' : 'submission-not-sent',
+      error: message,
+    })
+
+    identityRequestError.value = 'Request not submitted. Inspect the Docket for details.'
+    acknowledgeIdentityRequest('error')
   }
 }
 
@@ -451,14 +499,24 @@ function handleCameraWheel(event: WheelEvent) {
 }
 
 watch(prefersReducedMotion, startHeroRotation)
-watch(
-  () => walletConnection.value?.address,
-  (address, previousAddress) => {
-    if (previousAddress && address !== previousAddress) {
-      clearIdentityRequest()
-    }
-  },
-)
+watch(docketSessionContext, (current, previous) => {
+  recordSessionTransition(previous, current)
+  if (
+    previous &&
+    (!current ||
+      current.controller !== previous.controller ||
+      current.chainId !== previous.chainId ||
+      current.provider !== previous.provider)
+  ) {
+    clearIdentityRequest()
+  }
+})
+watch(activeFacet, (facet) => {
+  if (facet === 'initiated') {
+    docketAttention.value = false
+    window.clearTimeout(docketAttentionTimer)
+  }
+})
 
 onMounted(() => {
   documentClickHandler = (event) => {
@@ -496,6 +554,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.clearInterval(actorTimer)
   window.clearInterval(lawTimer)
+  window.clearTimeout(docketAttentionTimer)
   clearHorizontalWheelSettleTimer()
   surfaceCameraEl.value?.removeEventListener('wheel', handleCameraWheel)
   if (documentClickHandler) {
@@ -724,14 +783,10 @@ onBeforeUnmount(() => {
                 <div class="identity-request-heading">
                   <p class="identity-request-kicker">IDENTITY REQUEST</p>
                   <h2 id="identity-request-title">Establish an identity.</h2>
-                  <p>
-                    An identity is established by a wallet controller and recorded on the selected
-                    network.
-                  </p>
+                  <p>Make a name and purpose legible on the network.</p>
                 </div>
 
                 <div v-if="!walletConnection" class="identity-request-connect">
-                  <p>A wallet controller is required to initiate an identity request.</p>
                   <button
                     class="identity-request-connect-action"
                     type="button"
@@ -757,7 +812,7 @@ onBeforeUnmount(() => {
                       name="identity-name"
                       autocomplete="off"
                       required
-                      :disabled="identityRequestSubmitting"
+                      :disabled="identityRequestSubmitting || identityRequestState === 'submitted'"
                     />
                   </label>
                   <label>
@@ -767,13 +822,22 @@ onBeforeUnmount(() => {
                       name="identity-description"
                       rows="3"
                       required
-                      :disabled="identityRequestSubmitting"
+                      :disabled="identityRequestSubmitting || identityRequestState === 'submitted'"
                     />
                   </label>
                   <p v-if="!identityRequestConfigured" class="identity-request-error" role="alert">
                     Identity creation is not available on the selected network.
                   </p>
                   <button
+                    v-if="identityRequestState === 'submitted'"
+                    class="identity-request-submit"
+                    type="button"
+                    @click="beginAnotherIdentityRequest"
+                  >
+                    CREATE ANOTHER IDENTITY
+                  </button>
+                  <button
+                    v-else
                     class="identity-request-submit"
                     type="submit"
                     :disabled="
@@ -800,16 +864,7 @@ onBeforeUnmount(() => {
                     role="status"
                     aria-live="polite"
                   >
-                    <p class="identity-request-status-label">IDENTITY REQUEST SUBMITTED</p>
-                    <p>Transaction submitted to the selected network.</p>
-                    <SurfaceReference
-                      v-if="submittedTransactionReference"
-                      :reference="submittedTransactionReference"
-                    />
-                    <p>
-                      Surface will observe any resulting identity record. You may initiate another
-                      request now.
-                    </p>
+                    <p class="identity-request-status-label">REQUEST ADDED TO DOCKET</p>
                   </div>
                   <p v-else-if="identityRequestError" class="identity-request-error" role="alert">
                     {{ identityRequestError }}
@@ -826,9 +881,7 @@ onBeforeUnmount(() => {
             aria-labelledby="surface-docket-title"
           >
             <div class="surface-facet-inner">
-              <section class="surface-docket" aria-labelledby="surface-docket-title">
-                <h2 id="surface-docket-title">DOCKET</h2>
-              </section>
+              <SurfaceDocket :entries="docketEntries" />
             </div>
           </section>
         </div>
@@ -847,7 +900,10 @@ onBeforeUnmount(() => {
             <span class="surface-navigator-home-pulse"></span>
           </span>
         </span>
-        <span class="surface-navigator-label" :class="{ 'is-active': activeFacetIndex === 2 }">
+        <span
+          class="surface-navigator-label"
+          :class="{ 'is-active': activeFacetIndex === 2, 'has-attention': docketAttention }"
+        >
           INITIATED
         </span>
       </div>

@@ -387,6 +387,8 @@ describe('App', () => {
     expect(
       (wrapper.get('textarea[name="identity-description"]').element as HTMLTextAreaElement).value,
     ).toBe('')
+    expect(wrapper.get('.surface-docket').text()).toContain('CONTROLLER DISCONNECTED')
+    expect(wrapper.get('.surface-docket').text()).toContain('CONTROLLER CONNECTED')
   })
 
   it('collects identity details and submits the request from the connected wallet', async () => {
@@ -432,22 +434,37 @@ describe('App', () => {
         description: 'Stewardship identity for the public archive.',
       }),
     )
-    expect(request.text()).toContain('IDENTITY REQUEST SUBMITTED')
-    expect(request.text()).toContain('Transaction submitted to the selected network.')
-    expect(request.text()).toContain('You may initiate another request now.')
-    expect(request.get('.surface-reference-trigger').text()).toBe('CFD44056…D37D34AD')
-    expect(request.get('.surface-reference-trigger').attributes('aria-label')).toContain(
+    expect(request.text()).toContain('REQUEST ADDED TO DOCKET')
+    expect(request.get('.identity-request-submit').text()).toBe('CREATE ANOTHER IDENTITY')
+    const docket = wrapper.get('.surface-docket')
+    expect(docket.text()).toContain('CURRENT ACTIVITY')
+    expect(docket.text()).toContain('Library steward')
+    expect(docket.text()).toContain('TRANSACTION SUBMITTED')
+    const transactionTrigger = docket.get('[aria-label^="Inspect Transaction hash:"]')
+    expect(transactionTrigger.text()).toBe('CFD44056…D37D34AD')
+    expect(transactionTrigger.attributes('aria-label')).toContain(
       'Transaction hash: CFD44056AF808268C51211C571557FC2B7080F755DB0FDA77E8FEC10D37D34AD',
     )
-    await request.get('.surface-reference-trigger').trigger('click')
+    await transactionTrigger.trigger('click')
     const transactionPopover = document.body.querySelector<HTMLElement>('.surface-reference-panel')!
     expect(transactionPopover.querySelector('a')?.getAttribute('href')).toBe(
       'https://explorer.aknodes.com/AXONE-TESTNET/tx/CFD44056AF808268C51211C571557FC2B7080F755DB0FDA77E8FEC10D37D34AD',
     )
+    expect((wrapper.get('input[name="identity-name"]').element as HTMLInputElement).value).toBe(
+      'Library steward',
+    )
+    expect(
+      (wrapper.get('textarea[name="identity-description"]').element as HTMLTextAreaElement).value,
+    ).toBe('Stewardship identity for the public archive.')
+    expect(wrapper.get('input[name="identity-name"]').attributes('disabled')).toBeDefined()
+
+    await wrapper.get('.identity-request-submit').trigger('click')
+    expect(wrapper.get('.identity-request-submit').text()).toBe('SIGN IDENTITY CREATION')
     expect((wrapper.get('input[name="identity-name"]').element as HTMLInputElement).value).toBe('')
     expect(
       (wrapper.get('textarea[name="identity-description"]').element as HTMLTextAreaElement).value,
     ).toBe('')
+    expect(wrapper.get('input[name="identity-name"]').attributes('disabled')).toBeUndefined()
 
     await wrapper.get('input[name="identity-name"]').setValue('Second identity')
     await wrapper.get('textarea[name="identity-description"]').setValue('A second stewardship.')
@@ -456,6 +473,73 @@ describe('App', () => {
     expect(identityRequestClient.submit).toHaveBeenLastCalledWith(
       expect.objectContaining({ name: 'Second identity', description: 'A second stewardship.' }),
     )
+    expect(wrapper.findAll('.surface-docket-entry')).toHaveLength(2)
+  })
+
+  it('reports an included transaction failure in the docket without calling it submitted', async () => {
+    const fetchMock = installSuccessfulBrowserMocks()
+    fetchMock.mockImplementation(async (input) =>
+      String(input).includes('/cosmos/tx/v1beta1/txs/FAILED-TX')
+        ? createResponse({
+            tx_response: {
+              code: 5,
+              height: '42',
+              raw_log:
+                'failed to execute message; message index: 0: description too short, must be at least 1 characters: instantiate wasm contract failed',
+            },
+          })
+        : createResponse(createEmptyTxList()),
+    )
+    walletClient.availableProviders.mockReturnValue(['keplr'])
+    walletClient.connect.mockResolvedValue({ address: 'axone1failedcontroller' })
+    identityRequestClient.submit.mockResolvedValue({ transactionHash: 'FAILED-TX' })
+
+    const wrapper = mountApp()
+    await flushPromises()
+    await wrapper.get('.identity-request-connect-action').trigger('click')
+    await wrapper.get('.wallet-option').trigger('click')
+    await flushPromises()
+    await wrapper.get('input[name="identity-name"]').setValue('Failed identity')
+    await wrapper.get('textarea[name="identity-description"]').setValue('Failure evidence.')
+    await wrapper.get('.identity-request-form').trigger('submit')
+    await flushPromises()
+
+    const docketEntry = wrapper.get('.surface-docket-entry')
+    expect(docketEntry.get('.surface-docket-status').text()).toBe('TRANSACTION FAILED')
+    expect(docketEntry.text()).toContain('Description too short, must be at least 1 characters.')
+    expect(docketEntry.text()).not.toContain('Awaiting network result')
+    const blockTrigger = docketEntry.get('[aria-label="Inspect Block height: 42"]')
+    await blockTrigger.trigger('click')
+    expect(
+      document.body
+        .querySelector<HTMLElement>('[aria-label="Inspect Block height"]')
+        ?.querySelector('a')
+        ?.getAttribute('href'),
+    ).toBe('https://explorer.aknodes.com/AXONE-TESTNET/block/42')
+  })
+
+  it('records a rejected signature without inventing transaction evidence', async () => {
+    installSuccessfulBrowserMocks()
+    walletClient.availableProviders.mockReturnValue(['keplr'])
+    walletClient.connect.mockResolvedValue({ address: 'axone1rejectingcontroller' })
+    identityRequestClient.submit.mockRejectedValue(new Error('Request rejected'))
+
+    const wrapper = mountApp()
+    await flushPromises()
+    await wrapper.get('.identity-request-connect-action').trigger('click')
+    await wrapper.get('.wallet-option').trigger('click')
+    await flushPromises()
+    await wrapper.get('input[name="identity-name"]').setValue('Rejected identity')
+    await wrapper.get('textarea[name="identity-description"]').setValue('Rejected locally.')
+    await wrapper.get('.identity-request-form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.get('.identity-request-error').text()).toBe(
+      'Request not submitted. Inspect the Docket for details.',
+    )
+    const docketEntry = wrapper.get('.surface-docket-entry')
+    expect(docketEntry.get('.surface-docket-status').text()).toBe('SIGNATURE DECLINED')
+    expect(docketEntry.find('.surface-docket-situation-facts').exists()).toBe(false)
   })
 
   it('renders unavailable wallet options when no extension is installed', async () => {
