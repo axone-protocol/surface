@@ -25,6 +25,7 @@ vi.mock('../infra/browser-identity-request-client', () => ({
 const writeClipboard = vi.fn<(address: string) => Promise<void>>()
 
 import App from '../App.vue'
+import { router } from '../router'
 
 function createCanvasContextMock() {
   return {
@@ -117,7 +118,10 @@ function installSuccessfulBrowserMocks() {
 const mountedApps = new Set<{ unmount: () => void }>()
 
 function mountApp() {
-  const wrapper = mount(App, { attachTo: document.body })
+  const wrapper = mount(App, {
+    attachTo: document.body,
+    global: { plugins: [router] },
+  })
   mountedApps.add(wrapper)
   return wrapper
 }
@@ -139,12 +143,13 @@ describe('App', () => {
     })
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     for (const wrapper of mountedApps) {
       wrapper.unmount()
     }
     mountedApps.clear()
     localStorage.clear()
+    await router.replace('/')
   })
 
   it('renders the live act homepage shell', async () => {
@@ -216,16 +221,45 @@ describe('App', () => {
     await camera.trigger('focus')
 
     await camera.trigger('keydown', { key: 'ArrowLeft' })
+    await flushPromises()
     expect(camera.attributes('data-active-facet')).toBe('established')
     await camera.trigger('keydown', { key: 'ArrowLeft' })
+    await flushPromises()
     expect(camera.attributes('data-active-facet')).toBe('established')
 
     await camera.trigger('keydown', { key: 'ArrowRight' })
+    await flushPromises()
     expect(camera.attributes('data-active-facet')).toBe('current')
     await camera.trigger('keydown', { key: 'ArrowRight' })
+    await flushPromises()
     expect(camera.attributes('data-active-facet')).toBe('initiated')
     await camera.trigger('keydown', { key: 'ArrowRight' })
+    await flushPromises()
     expect(camera.attributes('data-active-facet')).toBe('initiated')
+  })
+
+  it('restores the camera from the fragment and writes settled camera positions', async () => {
+    installSuccessfulBrowserMocks()
+    await router.replace({ path: '/', hash: '#established' })
+
+    const wrapper = mountApp()
+    await flushPromises()
+    const camera = wrapper.get('.surface-camera')
+    expect(camera.attributes('data-active-facet')).toBe('established')
+
+    await camera.trigger('keydown', { key: 'ArrowRight' })
+    await flushPromises()
+    expect(camera.attributes('data-active-facet')).toBe('current')
+    expect(router.currentRoute.value.hash).toBe('')
+
+    await router.push({ path: '/', hash: '#initiated' })
+    await flushPromises()
+    expect(camera.attributes('data-active-facet')).toBe('initiated')
+
+    await router.push({ path: '/', hash: '#current' })
+    await flushPromises()
+    expect(camera.attributes('data-active-facet')).toBe('current')
+    expect(router.currentRoute.value.hash).toBe('')
   })
 
   it('stops hero rotation when reduced motion becomes preferred', async () => {

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { usePreferredReducedMotion } from '@vueuse/core'
-import { AnimatePresence, motion, MotionConfig } from 'motion-v'
+import { MotionConfig } from 'motion-v'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 
 import SurfaceActStream from './components/SurfaceActStream.vue'
 import SurfaceDocket from './components/SurfaceDocket.vue'
 import SurfaceDropdown from './components/SurfaceDropdown.vue'
 import SurfaceReference from './components/SurfaceReference.vue'
-import { isIdentityRequestComplete } from './domain/identity-request'
 import { isWalletRejection } from './domain/surface-docket'
 import type { SurfaceReference as SurfaceReferenceModel } from './domain/surface-reference'
 import { shortenWalletAddress } from './lib/shorten'
@@ -16,15 +16,7 @@ import { useSurfaceDocket, type DocketSessionContext } from './composables/useSu
 import { useWalletConnection } from './composables/useWalletConnection'
 import type { WalletProviderId } from './domain/wallet-connection'
 import { networks, type Network } from './networks'
-import { surfaceLaws } from './surfaceLaws'
 
-const actorLines = [
-  'For humans.',
-  'For agents.',
-  'For organisations.',
-  'For any resource in scope.',
-]
-const defaultLaw = surfaceLaws[0]!
 const walletProviderOptions: ReadonlyArray<{ id: WalletProviderId; label: string }> = [
   { id: 'keplr', label: 'Keplr' },
   { id: 'leap', label: 'Leap' },
@@ -36,16 +28,11 @@ const facetIds: readonly FacetId[] = ['established', 'current', 'initiated']
 
 const preferredMotion = usePreferredReducedMotion()
 const prefersReducedMotion = computed(() => preferredMotion.value === 'reduce')
-const activeLawId = ref(defaultLaw.id)
-const activeActorIndex = ref(0)
+const route = useRoute()
+const router = useRouter()
 const selectedNetworkKey = ref<Network['key']>('testnet')
 const networkMenuOpen = ref(false)
 const walletMenuOpen = ref(false)
-const identityName = ref('')
-const identityDescription = ref('')
-const identityRequestState = ref<'idle' | 'submitting' | 'submitted' | 'error'>('idle')
-const identityRequestComposing = ref(false)
-const identityRequestError = ref<string | null>(null)
 const docketAttention = ref(false)
 const surfaceActionsEl = ref<HTMLElement | null>(null)
 const { acts, loading, error, polling } = useSurfaceActs()
@@ -67,26 +54,11 @@ let cameraStartY = 0
 let hasPanned = false
 let cameraPointerCanPan = false
 let horizontalWheelSettleTimer: number | undefined
-let actorTimer: number | undefined
-let lawTimer: number | undefined
 let docketAttentionTimer: number | undefined
 
 let documentClickHandler: ((event: MouseEvent) => void) | null = null
 let documentKeydownHandler: ((event: KeyboardEvent) => void) | null = null
 
-const activeLaw = computed(
-  () => surfaceLaws.find((law) => law.id === activeLawId.value) ?? defaultLaw,
-)
-const activeActorLine = computed(() => actorLines[activeActorIndex.value] ?? actorLines[0])
-const immediateMotionTransition = { duration: 0 }
-const lawMotionTransition = { duration: 0.5, ease: 'easeInOut' }
-const actorMotionTransition = { duration: 0.26, ease: 'easeInOut' }
-const lawTransition = computed(() =>
-  prefersReducedMotion.value ? immediateMotionTransition : lawMotionTransition,
-)
-const actorTransition = computed(() =>
-  prefersReducedMotion.value ? immediateMotionTransition : actorMotionTransition,
-)
 const selectedNetwork = computed(
   () => networks.find((network) => network.key === selectedNetworkKey.value) ?? networks[0]!,
 )
@@ -137,16 +109,6 @@ const walletProviderInstallHint = computed(
   () =>
     `Install ${walletProviderOptions.map((provider) => provider.label).join(' or ')} to connect a wallet.`,
 )
-const identityRequestReady = computed(() =>
-  isIdentityRequestComplete({ name: identityName.value, description: identityDescription.value }),
-)
-const identityRequestSubmitting = computed(() => identityRequestState.value === 'submitting')
-const identityRequestConfigured = computed(
-  () =>
-    selectedNetwork.value.abstractAccountCodeId !== null &&
-    selectedNetwork.value.abstractAccountAdmin !== null &&
-    selectedNetwork.value.api !== null,
-)
 const walletAddressExplorerUrl = computed(() =>
   walletConnection.value
     ? `${selectedNetwork.value.explorer}/account/${walletConnection.value.address}`
@@ -174,7 +136,6 @@ function selectNetwork(networkKey: Network['key']) {
   }
 
   selectedNetworkKey.value = network.key
-  clearIdentityRequest()
   networkMenuOpen.value = false
 }
 
@@ -215,33 +176,7 @@ async function connectWallet(provider: WalletProviderId) {
 
 function disconnectWallet() {
   disconnectWalletClient()
-  clearIdentityRequest()
   closeMenus()
-}
-
-function clearIdentityRequestDraft() {
-  identityName.value = ''
-  identityDescription.value = ''
-}
-
-function clearIdentityRequest() {
-  clearIdentityRequestDraft()
-  identityRequestState.value = 'idle'
-  identityRequestComposing.value = false
-  identityRequestError.value = null
-}
-
-function beginIdentityRequest() {
-  if (walletConnection.value) {
-    identityRequestComposing.value = true
-  }
-}
-
-function beginAnotherIdentityRequest() {
-  clearIdentityRequestDraft()
-  identityRequestState.value = 'idle'
-  identityRequestComposing.value = true
-  identityRequestError.value = null
 }
 
 function signalDocketActivity() {
@@ -256,27 +191,20 @@ function signalDocketActivity() {
   }, 4_000)
 }
 
-function acknowledgeIdentityRequest(state: 'submitted' | 'error') {
-  identityRequestState.value = state
-}
-
-async function submitIdentityRequest() {
+async function submitIdentityRequest(input: { name: string; description: string }) {
   if (
     !walletConnection.value ||
-    !identityRequestReady.value ||
-    !identityRequestConfigured.value ||
-    identityRequestSubmitting.value
+    selectedNetwork.value.abstractAccountCodeId === null ||
+    selectedNetwork.value.abstractAccountAdmin === null ||
+    selectedNetwork.value.api === null
   ) {
-    return
+    return 'Request not submitted. Inspect the Docket for details.'
   }
 
   const connection = walletConnection.value
   const network = selectedNetwork.value
-  const name = identityName.value.trim()
-  const description = identityDescription.value.trim()
   const identityEvent = {
-    name,
-    description,
+    ...input,
     controller: connection.address,
     provider: connection.provider,
     networkKey: network.key,
@@ -284,8 +212,6 @@ async function submitIdentityRequest() {
     explorer: network.explorer,
   }
 
-  identityRequestState.value = 'submitting'
-  identityRequestError.value = null
   signalDocketActivity()
 
   try {
@@ -294,8 +220,7 @@ async function submitIdentityRequest() {
       provider: connection.provider,
       sender: connection.address,
       network,
-      name,
-      description,
+      ...input,
     })
     const docketEntry = appendIdentityEvent({
       ...identityEvent,
@@ -303,8 +228,7 @@ async function submitIdentityRequest() {
       transactionHash: submitted.transactionHash,
     })
     void observeSubmittedTransaction(docketEntry.id)
-
-    acknowledgeIdentityRequest('submitted')
+    return null
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Identity request could not be submitted.'
@@ -314,31 +238,8 @@ async function submitIdentityRequest() {
       error: message,
     })
 
-    identityRequestError.value = 'Request not submitted. Inspect the Docket for details.'
-    acknowledgeIdentityRequest('error')
+    return 'Request not submitted. Inspect the Docket for details.'
   }
-}
-
-function rotateActorLine() {
-  activeActorIndex.value = (activeActorIndex.value + 1) % actorLines.length
-}
-
-function rotateLaw() {
-  const currentIndex = surfaceLaws.findIndex((law) => law.id === activeLawId.value)
-  const nextLaw = surfaceLaws[(currentIndex + 1) % surfaceLaws.length] ?? defaultLaw
-  activeLawId.value = nextLaw.id
-}
-
-function startHeroRotation() {
-  window.clearInterval(actorTimer)
-  window.clearInterval(lawTimer)
-
-  if (prefersReducedMotion.value) {
-    return
-  }
-
-  actorTimer = window.setInterval(rotateActorLine, 4600)
-  lawTimer = window.setInterval(rotateLaw, 5200)
 }
 
 function clampFacetIndex(index: number) {
@@ -367,6 +268,46 @@ function settleCameraAt(index: number) {
   temporaryCameraOffset.value = 0
 }
 
+function facetFromHash(hash: string): FacetId {
+  switch (hash) {
+    case '#established':
+      return 'established'
+    case '#initiated':
+      return 'initiated'
+    case '':
+    case '#current':
+      return 'current'
+    default:
+      return 'current'
+  }
+}
+
+function hashForFacet(facet: FacetId) {
+  return facet === 'current' ? '' : `#${facet}`
+}
+
+function routeLocationForFacet(facet: FacetId) {
+  return {
+    path: route.path,
+    query: route.query,
+    hash: hashForFacet(facet),
+  }
+}
+
+function requestCameraAt(index: number) {
+  const nextIndex = clampFacetIndex(index)
+  const nextFacet = facetIds[nextIndex] ?? 'current'
+  const hash = hashForFacet(nextFacet)
+  temporaryCameraOffset.value = 0
+
+  if (route.hash === hash) {
+    settleCameraAt(nextIndex)
+    return
+  }
+
+  void router.push(routeLocationForFacet(nextFacet))
+}
+
 function cameraWidth() {
   return surfaceCameraEl.value?.clientWidth ?? 0
 }
@@ -390,7 +331,7 @@ function clearHorizontalWheelSettleTimer() {
 function settleCameraOffset() {
   const width = cameraWidth()
   if (width > 0) {
-    settleCameraAt(Math.round(activeFacetIndex.value - temporaryCameraOffset.value / width))
+    requestCameraAt(Math.round(activeFacetIndex.value - temporaryCameraOffset.value / width))
   } else {
     temporaryCameraOffset.value = 0
   }
@@ -464,9 +405,9 @@ function finishCameraPointer(event: PointerEvent) {
   if (didPan) {
     const threshold = Math.min(96, cameraWidth() * 0.18)
     if (temporaryCameraOffset.value <= -threshold) {
-      settleCameraAt(activeFacetIndex.value + 1)
+      requestCameraAt(activeFacetIndex.value + 1)
     } else if (temporaryCameraOffset.value >= threshold) {
-      settleCameraAt(activeFacetIndex.value - 1)
+      requestCameraAt(activeFacetIndex.value - 1)
     } else {
       temporaryCameraOffset.value = 0
     }
@@ -494,10 +435,10 @@ function suppressCameraPanClick(event: MouseEvent) {
 function handleCameraKeydown(event: KeyboardEvent) {
   if (event.key === 'ArrowLeft') {
     event.preventDefault()
-    settleCameraAt(activeFacetIndex.value - 1)
+    requestCameraAt(activeFacetIndex.value - 1)
   } else if (event.key === 'ArrowRight') {
     event.preventDefault()
-    settleCameraAt(activeFacetIndex.value + 1)
+    requestCameraAt(activeFacetIndex.value + 1)
   }
 }
 
@@ -513,18 +454,22 @@ function handleCameraWheel(event: WheelEvent) {
   horizontalWheelSettleTimer = window.setTimeout(settleCameraOffset, 120)
 }
 
-watch(prefersReducedMotion, startHeroRotation)
+watch(
+  () => route.hash,
+  (hash) => {
+    const facet = facetFromHash(hash)
+    const canonicalHash = hashForFacet(facet)
+    if (hash !== canonicalHash) {
+      void router.replace(routeLocationForFacet(facet))
+      return
+    }
+
+    settleCameraAt(facetIds.indexOf(facet))
+  },
+  { immediate: true },
+)
 watch(docketSessionContext, (current, previous) => {
   recordSessionTransition(previous, current)
-  if (
-    previous &&
-    (!current ||
-      current.controller !== previous.controller ||
-      current.chainId !== previous.chainId ||
-      current.provider !== previous.provider)
-  ) {
-    clearIdentityRequest()
-  }
 })
 watch(activeFacet, (facet) => {
   if (facet === 'initiated') {
@@ -563,12 +508,9 @@ onMounted(() => {
   document.addEventListener('click', documentClickHandler)
   document.addEventListener('keydown', documentKeydownHandler)
   surfaceCameraEl.value?.addEventListener('wheel', handleCameraWheel, { passive: false })
-  startHeroRotation()
 })
 
 onBeforeUnmount(() => {
-  window.clearInterval(actorTimer)
-  window.clearInterval(lawTimer)
   window.clearTimeout(docketAttentionTimer)
   clearHorizontalWheelSettleTimer()
   surfaceCameraEl.value?.removeEventListener('wheel', handleCameraWheel)
@@ -750,139 +692,20 @@ onBeforeUnmount(() => {
             :ref="(element) => setFacetElement('current', element)"
             data-facet="current"
             class="surface-facet"
-            aria-labelledby="surface-home-title"
+            aria-label="Surface view"
           >
             <div class="surface-facet-inner">
-              <header class="doctrine-hero">
-                <p
-                  class="law-line"
-                  :aria-label="`${activeLaw.number} / ${activeLaw.title} - ${activeLaw.paraphrase}`"
-                  aria-live="polite"
-                  aria-atomic="true"
-                >
-                  <AnimatePresence mode="wait" :initial="false">
-                    <motion.span
-                      :key="activeLaw.id"
-                      class="law-statement"
-                      :initial="{ opacity: 0, filter: 'blur(2px)' }"
-                      :animate="{ opacity: 1, filter: 'blur(0px)' }"
-                      :exit="{ opacity: 0, filter: 'blur(2px)' }"
-                      :transition="lawTransition"
-                    >
-                      <span class="law-number">{{ activeLaw.number }}</span>
-                      <span class="law-content">
-                        <span class="law-title">{{ activeLaw.title }}</span>
-                        <span class="law-separator" aria-hidden="true">—</span>
-                        <span class="law-paraphrase">{{ activeLaw.paraphrase }}</span>
-                      </span>
-                    </motion.span>
-                  </AnimatePresence>
-                  <span class="law-rule" aria-hidden="true"></span>
-                </p>
-                <h1 id="surface-home-title">GOVERN<br /><span class="act">ACT</span></h1>
-                <p class="actor-line" aria-live="polite" aria-atomic="true">
-                  <AnimatePresence mode="wait" :initial="false">
-                    <motion.span
-                      :key="activeActorIndex"
-                      :initial="{ opacity: 0, y: '0.3em' }"
-                      :animate="{ opacity: 1, y: 0 }"
-                      :exit="{ opacity: 0, y: '-0.24em' }"
-                      :transition="actorTransition"
-                    >
-                      {{ activeActorLine }}
-                    </motion.span>
-                  </AnimatePresence>
-                </p>
-              </header>
-              <section class="identity-request" aria-labelledby="identity-request-title">
-                <div class="identity-request-heading">
-                  <p class="identity-request-kicker">IDENTITY REQUEST</p>
-                  <h2 id="identity-request-title">Establish an identity.</h2>
-                </div>
-
-                <div v-if="!identityRequestComposing" class="identity-request-connect">
-                  <button
-                    class="identity-request-connect-action"
-                    type="button"
-                    :disabled="walletTriggerDisabled"
-                    @click="walletConnection ? beginIdentityRequest() : requestWalletConnection()"
-                  >
-                    {{ walletConnection ? 'NEW IDENTITY REQUEST' : 'CONNECT WALLET' }}
-                  </button>
-                </div>
-
-                <form
-                  v-else-if="walletConnection"
-                  class="identity-request-form"
-                  @submit.prevent="submitIdentityRequest()"
-                >
-                  <p class="identity-request-controller">
-                    CONTROLLER <code>{{ shortenWalletAddress(walletConnection.address) }}</code>
-                  </p>
-                  <label>
-                    <span>NAME · REQUIRED</span>
-                    <input
-                      v-model="identityName"
-                      name="identity-name"
-                      autocomplete="off"
-                      required
-                      :disabled="identityRequestSubmitting || identityRequestState === 'submitted'"
-                    />
-                  </label>
-                  <label>
-                    <span>DESCRIPTION · REQUIRED</span>
-                    <textarea
-                      v-model="identityDescription"
-                      name="identity-description"
-                      rows="3"
-                      required
-                      :disabled="identityRequestSubmitting || identityRequestState === 'submitted'"
-                    />
-                  </label>
-                  <p v-if="!identityRequestConfigured" class="identity-request-error" role="alert">
-                    Identity creation is not available on the selected network.
-                  </p>
-                  <button
-                    v-if="identityRequestState === 'submitted'"
-                    class="identity-request-submit"
-                    type="button"
-                    @click="beginAnotherIdentityRequest"
-                  >
-                    NEW IDENTITY REQUEST
-                  </button>
-                  <button
-                    v-else
-                    class="identity-request-submit"
-                    type="submit"
-                    :disabled="
-                      !identityRequestReady ||
-                      !identityRequestConfigured ||
-                      identityRequestSubmitting
-                    "
-                  >
-                    {{ identityRequestSubmitting ? 'AWAITING SIGNATURE' : 'SIGN REQUEST' }}
-                  </button>
-                  <p
-                    v-if="identityRequestSubmitting"
-                    class="identity-request-status is-pending"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    <span aria-hidden="true"></span> Awaiting wallet signature.
-                  </p>
-                  <div
-                    v-if="identityRequestState === 'submitted'"
-                    class="identity-request-status"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    <p class="identity-request-status-label">REQUEST ADDED TO DOCKET</p>
-                  </div>
-                  <p v-else-if="identityRequestError" class="identity-request-error" role="alert">
-                    {{ identityRequestError }}
-                  </p>
-                </form>
-              </section>
+              <RouterView v-slot="{ Component }">
+                <component
+                  :is="Component"
+                  :wallet-connection="walletConnection"
+                  :wallet-trigger-disabled="walletTriggerDisabled"
+                  :network="selectedNetwork"
+                  :reduced-motion="prefersReducedMotion"
+                  :request-wallet-connection="requestWalletConnection"
+                  :send-identity-request="submitIdentityRequest"
+                />
+              </RouterView>
             </div>
           </section>
 
