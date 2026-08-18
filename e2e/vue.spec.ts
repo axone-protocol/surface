@@ -153,7 +153,7 @@ test('pans only from empty space and preserves native text selection', async ({
   await expect(camera).toHaveAttribute('data-active-facet', 'current')
 })
 
-test('moves the mobile camera with a touch pointer without horizontal overflow', async ({
+test('moves the mobile camera with one touch without horizontal overflow', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'Mobile Chrome', 'Mobile camera contract')
@@ -169,36 +169,33 @@ test('moves the mobile camera with a touch pointer without horizontal overflow',
 
   const title = page.locator('h1')
 
-  await camera.evaluate((element) => {
-    element.setPointerCapture = () => undefined
-    element.hasPointerCapture = () => false
-  })
   const y = box.y + 160
   const startX = box.x + 280
-  await title.dispatchEvent('pointerdown', {
-    button: 0,
-    clientX: startX,
-    clientY: y,
-    isPrimary: true,
-    pointerId: 1,
-    pointerType: 'touch',
-  })
-  await title.dispatchEvent('pointermove', {
-    button: 0,
-    clientX: startX - 150,
-    clientY: y,
-    isPrimary: true,
-    pointerId: 1,
-    pointerType: 'touch',
-  })
-  await title.dispatchEvent('pointerup', {
-    button: 0,
-    clientX: startX - 150,
-    clientY: y,
-    isPrimary: true,
-    pointerId: 1,
-    pointerType: 'touch',
-  })
+  await title.evaluate(
+    (element, coordinates) => {
+      const dispatchTouch = (type: 'touchstart' | 'touchmove' | 'touchend', clientX: number) => {
+        const touch = new Touch({
+          identifier: 1,
+          target: element,
+          clientX,
+          clientY: coordinates.y,
+        })
+        element.dispatchEvent(
+          new TouchEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            changedTouches: [touch],
+            touches: type === 'touchend' ? [] : [touch],
+          }),
+        )
+      }
+
+      dispatchTouch('touchstart', coordinates.startX)
+      dispatchTouch('touchmove', coordinates.startX - 150)
+      dispatchTouch('touchend', coordinates.startX - 150)
+    },
+    { startX, y },
+  )
   await expect(camera).toHaveAttribute('data-active-facet', 'initiated')
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth === window.innerWidth))

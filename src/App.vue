@@ -49,6 +49,7 @@ const isCameraPanning = ref(false)
 const isCameraWheeling = ref(false)
 const facetElements = new Map<FacetId, HTMLElement>()
 let cameraPointerId: number | undefined
+let cameraTouchId: number | undefined
 let cameraStartX = 0
 let cameraStartY = 0
 let hasPanned = false
@@ -339,13 +340,12 @@ function settleCameraOffset() {
   isCameraWheeling.value = false
 }
 
-function canPanFrom(event: PointerEvent) {
-  const target = event.target
+function canPanFrom(target: EventTarget | null, input: 'mouse' | 'touch') {
   if (!(target instanceof Element)) {
     return true
   }
 
-  if (event.pointerType === 'touch') {
+  if (input === 'touch') {
     return !target.closest('a, button, input, textarea, select, [contenteditable]')
   }
 
@@ -355,16 +355,96 @@ function canPanFrom(event: PointerEvent) {
 }
 
 function handleCameraPointerDown(event: PointerEvent) {
-  if (!event.isPrimary || event.button !== 0) {
+  if (event.pointerType === 'touch' || !event.isPrimary || event.button !== 0) {
     return
   }
 
   hasPanned = false
-  cameraPointerCanPan = canPanFrom(event)
+  cameraPointerCanPan = canPanFrom(event.target, 'mouse')
   cameraPointerId = event.pointerId
   cameraStartX = event.clientX
   cameraStartY = event.clientY
   temporaryCameraOffset.value = 0
+}
+
+function touchWithId(touches: TouchList, identifier: number) {
+  for (let index = 0; index < touches.length; index += 1) {
+    const touch = touches.item(index)
+    if (touch?.identifier === identifier) {
+      return touch
+    }
+  }
+
+  return undefined
+}
+
+function handleCameraTouchStart(event: TouchEvent) {
+  if (event.touches.length !== 1) {
+    return
+  }
+
+  const touch = event.touches.item(0)
+  if (!touch) {
+    return
+  }
+
+  hasPanned = false
+  cameraPointerCanPan = canPanFrom(event.target, 'touch')
+  cameraTouchId = touch.identifier
+  cameraStartX = touch.clientX
+  cameraStartY = touch.clientY
+  temporaryCameraOffset.value = 0
+}
+
+function handleCameraTouchMove(event: TouchEvent) {
+  if (cameraTouchId === undefined || !cameraPointerCanPan) {
+    return
+  }
+
+  const touch = touchWithId(event.touches, cameraTouchId)
+  if (!touch) {
+    return
+  }
+
+  const horizontalTravel = touch.clientX - cameraStartX
+  const verticalTravel = touch.clientY - cameraStartY
+  if (!isCameraPanning.value) {
+    if (
+      Math.abs(horizontalTravel) <= 12 ||
+      Math.abs(horizontalTravel) <= Math.abs(verticalTravel)
+    ) {
+      return
+    }
+
+    window.getSelection()?.removeAllRanges()
+    isCameraPanning.value = true
+  }
+
+  event.preventDefault()
+  temporaryCameraOffset.value = boundedCameraOffset(horizontalTravel)
+}
+
+function finishCameraTouch(event: TouchEvent) {
+  if (cameraTouchId === undefined || !touchWithId(event.changedTouches, cameraTouchId)) {
+    return
+  }
+
+  const didPan = isCameraPanning.value
+  if (didPan) {
+    const threshold = Math.min(96, cameraWidth() * 0.18)
+    if (temporaryCameraOffset.value <= -threshold) {
+      requestCameraAt(activeFacetIndex.value + 1)
+    } else if (temporaryCameraOffset.value >= threshold) {
+      requestCameraAt(activeFacetIndex.value - 1)
+    } else {
+      temporaryCameraOffset.value = 0
+    }
+  }
+
+  isCameraPanning.value = false
+  cameraTouchId = undefined
+  cameraPointerCanPan = false
+  hasPanned = didPan
 }
 
 function handleCameraPointerMove(event: PointerEvent) {
@@ -660,6 +740,10 @@ onBeforeUnmount(() => {
         @pointermove="handleCameraPointerMove"
         @pointerup="finishCameraPointer"
         @pointercancel="finishCameraPointer"
+        @touchstart="handleCameraTouchStart"
+        @touchmove="handleCameraTouchMove"
+        @touchend="finishCameraTouch"
+        @touchcancel="finishCameraTouch"
         @click.capture="suppressCameraPanClick"
         @keydown="handleCameraKeydown"
       >
