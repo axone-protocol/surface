@@ -28,7 +28,7 @@ export const networks: Network[] = [
     displayName: 'axone-testnet',
     bech32Prefix: 'axone',
     rest: 'https://api.axone.aknodes.net/cosmos/base/tendermint/v1beta1/blocks/latest',
-    api: 'https://api.axone.aknodes.net',
+    api: 'https://axonetestnet-api.meshrpc.com',
     explorer: 'https://explorer.aknodes.com/AXONE-TESTNET',
     rpc: 'https://rpc.axone.aknodes.net',
     feeDenom: 'uaxone',
