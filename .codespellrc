@@ -1,4 +1,5 @@
 [codespell]
 skip = *.json,pnpm-lock.yaml,dist,node_modules,.direnv
+ignore-words-list = te
 count = true
 quiet-level = 3
