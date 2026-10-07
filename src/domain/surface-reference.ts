@@ -6,5 +6,4 @@ export type SurfaceReference = {
 }
 
 export type SurfaceAssertionPart =
-  | { type: 'text'; value: string }
-  | { type: 'reference'; reference: SurfaceReference }
+  { type: 'text'; value: string } | { type: 'reference'; reference: SurfaceReference }
