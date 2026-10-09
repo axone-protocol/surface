@@ -34,7 +34,7 @@
         "motion-v": "^2.3.0",
         "pixi.js": "^8.22.0",
         "vue": "^3.5.38",
-        "vue-router": "^4.6.4"
+        "vue-router": "^5.3.1"
     },
     "devDependencies": {
         "@playwright/test": "^1.61.0",
