@@ -1,18 +1,32 @@
 name: Auto merge
 
 on:
-  pull_request:
+  pull_request_target:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   auto-merge-dependabot:
     runs-on: ubuntu-22.04
-    if: github.actor == 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'app/dependabot' || github.event.pull_request.user.login == 'dependabot[bot]'
     steps:
-      - name: Auto merge PR
-        uses: ahmadnassri/action-dependabot-auto-merge@45fc124d949b19b6b8bf6645b6c9d55f4f9ac61a # v2
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
         with:
-          target: minor
           github-token: ${{ secrets.OPS_TOKEN }}
+          skip-verification: true
+      - name: Approve Dependabot PR
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr review --approve "$PR_URL"
+        env:
+          GH_TOKEN: ${{ secrets.OPS_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+      - name: Enable auto-merge
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          GH_TOKEN: ${{ secrets.OPS_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
