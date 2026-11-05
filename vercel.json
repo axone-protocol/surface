@@ -1,0 +1,8 @@
+{
+    "rewrites": [
+        {
+            "source": "/chain-api/:path*",
+            "destination": "https://axone-test.api.cumulo.com.es/:path*"
+        }
+    ]
+}

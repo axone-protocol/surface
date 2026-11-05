@@ -1,10 +1,43 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { resolveModuleAdministrators, resolveTransactionEntries } from '../axone-tx-api'
+import {
+  fetchExecuteContractTxs,
+  resolveModuleAdministrators,
+  resolveTransactionEntries,
+} from '../axone-tx-api'
 
 function response(body: unknown, ok = true): Response {
   return { ok, status: ok ? 200 : 503, json: async () => body } as unknown as Response
 }
+
+describe('fetchExecuteContractTxs', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('retains available transactions when the node has pruned older blocks', async () => {
+    const queries: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: URL) => {
+        queries.push(input.searchParams.get('query')!)
+        return queries.length === 1
+          ? {
+              ok: false,
+              status: 500,
+              json: async () => ({ message: 'height 99 is not available, lowest height is 100' }),
+            }
+          : response({ tx_responses: [{ height: '101', txhash: 'AVAILABLE' }] })
+      }),
+    )
+
+    expect((await fetchExecuteContractTxs()).txResponses).toEqual([
+      { height: '101', txhash: 'AVAILABLE' },
+    ])
+    expect(queries).toEqual([
+      "message.action='/cosmwasm.wasm.v1.MsgExecuteContract'",
+      "message.action='/cosmwasm.wasm.v1.MsgExecuteContract' AND tx.height>=100",
+    ])
+  })
+})
 
 describe('resolveTransactionEntries', () => {
   afterEach(() => {

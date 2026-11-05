@@ -1,6 +1,6 @@
 import { type CosmosTxListResponse, type CosmosTxResponse } from './axone-event-extractor'
 
-const AXONE_API_BASE = 'https://api.axone.aknodes.net'
+const AXONE_API_BASE = new URL('/chain-api/', window.location.origin)
 const DEFAULT_LIMIT = 5
 const MAX_BLOCK_CACHE_ENTRIES = 12
 const MAX_MODULE_ADMIN_CACHE_ENTRIES = 24
@@ -38,7 +38,7 @@ async function transactionHash(transaction: string) {
 }
 
 async function fetchBlockTransactionHashes(height: number, signal?: AbortSignal) {
-  const url = new URL(`/cosmos/base/tendermint/v1beta1/blocks/${height}`, AXONE_API_BASE)
+  const url = new URL(`cosmos/base/tendermint/v1beta1/blocks/${height}`, AXONE_API_BASE)
 
   const response = await fetch(url, {
     method: 'GET',
@@ -84,7 +84,7 @@ function blockTransactionHashes(height: number, signal?: AbortSignal) {
 }
 
 async function fetchModuleAdministrator(address: string, signal?: AbortSignal) {
-  const url = new URL(`/cosmwasm/wasm/v1/contract/${address}`, AXONE_API_BASE)
+  const url = new URL(`cosmwasm/wasm/v1/contract/${address}`, AXONE_API_BASE)
   const response = await fetch(url, {
     method: 'GET',
     signal,
@@ -176,19 +176,24 @@ async function fetchTxsByAction(
   signal?: AbortSignal,
   limit = DEFAULT_LIMIT,
 ): Promise<FetchedTxBatch> {
-  const url = new URL('/cosmos/tx/v1beta1/txs', AXONE_API_BASE)
+  const url = new URL('cosmos/tx/v1beta1/txs', AXONE_API_BASE)
   url.searchParams.set('query', `message.action='${action}'`)
   url.searchParams.set('page', '1')
   url.searchParams.set('limit', String(limit))
   url.searchParams.set('order_by', 'ORDER_BY_DESC')
 
-  const response = await fetch(url, {
-    method: 'GET',
-    signal,
-    headers: {
-      accept: 'application/json',
-    },
-  })
+  const options = { method: 'GET', signal, headers: { accept: 'application/json' } }
+  let response = await fetch(url, options)
+  if (response.status === 500) {
+    const error = (await response.json().catch(() => null)) as { message?: string } | null
+    const lowestHeight = error?.message?.match(
+      /^height \d+ is not available, lowest height is (\d+)$/,
+    )?.[1]
+    if (lowestHeight) {
+      url.searchParams.set('query', `message.action='${action}' AND tx.height>=${lowestHeight}`)
+      response = await fetch(url, options)
+    }
+  }
 
   if (!response.ok) {
     throw new Error(`Axone API request failed (${response.status})`)

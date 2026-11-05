@@ -21,10 +21,12 @@ describe('useSurfaceActs', () => {
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.restoreAllMocks()
     vi.unstubAllGlobals()
   })
 
   it('polls and merges acts over time', async () => {
+    const digest = vi.spyOn(crypto.subtle, 'digest')
     const fetchMock = vi
       .fn<(input: RequestInfo | URL) => Promise<Response>>()
       .mockImplementation(async (input) => {
@@ -97,6 +99,8 @@ describe('useSurfaceActs', () => {
 
     mount(Harness)
 
+    await flushPromises()
+    await Promise.all(digest.mock.results.map((result) => result.value))
     await flushPromises()
     await nextTick()
 

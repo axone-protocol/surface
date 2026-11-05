@@ -7,6 +7,15 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [vue(), vueDevTools()],
+  server: {
+    proxy: {
+      '/chain-api': {
+        target: 'https://axone-test.api.cumulo.com.es',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/chain-api/, ''),
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
