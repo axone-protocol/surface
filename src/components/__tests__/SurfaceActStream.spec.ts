@@ -6,7 +6,7 @@ import type { SurfaceAct } from '../../domain/surface-act'
 import SurfaceActLine from '../SurfaceActLine.vue'
 import SurfaceActStream from '../SurfaceActStream.vue'
 
-const testExplorer = 'https://explorer.aknodes.com/AXONE-TESTNET'
+const testExplorer = 'https://explore.axone.xyz/AXONE-TESTNET'
 
 function makeAct(id: string, height: number, signer: string): SurfaceAct {
   return {

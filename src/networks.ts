@@ -6,10 +6,8 @@ export type Network = {
   chainId: string
   displayName: string
   bech32Prefix: string
-  rest: string
   api: string | null
   explorer: string
-  rpc: string | null
   feeDenom: string | null
   gasPrice: string | null
   identityRequestGasLimit: number | null
@@ -27,10 +25,8 @@ export const networks: Network[] = [
     chainId: 'axone-dendrite-2',
     displayName: 'axone-testnet',
     bech32Prefix: 'axone',
-    rest: 'https://api.axone.aknodes.net/cosmos/base/tendermint/v1beta1/blocks/latest',
     api: 'https://axonetestnet-api.meshrpc.com',
-    explorer: 'https://explorer.aknodes.com/AXONE-TESTNET',
-    rpc: 'https://rpc.axone.aknodes.net',
+    explorer: 'https://explore.axone.xyz/AXONE-TESTNET',
     feeDenom: 'uaxone',
     gasPrice: '0.025uaxone',
     identityRequestGasLimit: 400_000,
@@ -46,10 +42,8 @@ export const networks: Network[] = [
     chainId: 'axone-1',
     displayName: 'axone-mainnet',
     bech32Prefix: 'axone',
-    rest: 'https://rpc.axone.aknodes.net',
     api: null,
     explorer: 'https://explorer.aknodes.com/AXONE-MAINNET',
-    rpc: null,
     feeDenom: null,
     gasPrice: null,
     identityRequestGasLimit: null,

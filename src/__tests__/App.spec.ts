@@ -393,7 +393,7 @@ describe('App', () => {
     const walletExplorerLink = walletDialog.querySelector<HTMLAnchorElement>('a')!
     expect(walletExplorerLink.textContent).toBe('OPEN IN EXPLORER')
     expect(walletExplorerLink.getAttribute('href')).toBe(
-      `https://explorer.aknodes.com/AXONE-TESTNET/account/${walletAddress}`,
+      `https://explore.axone.xyz/AXONE-TESTNET/account/${walletAddress}`,
     )
     expect(walletExplorerLink.target).toBe('_blank')
     expect(walletExplorerLink.rel).toBe('noopener noreferrer')
@@ -487,7 +487,7 @@ describe('App', () => {
     await transactionTrigger.trigger('click')
     const transactionPopover = document.body.querySelector<HTMLElement>('.surface-reference-panel')!
     expect(transactionPopover.querySelector('a')?.getAttribute('href')).toBe(
-      'https://explorer.aknodes.com/AXONE-TESTNET/tx/CFD44056AF808268C51211C571557FC2B7080F755DB0FDA77E8FEC10D37D34AD',
+      'https://explore.axone.xyz/AXONE-TESTNET/tx/CFD44056AF808268C51211C571557FC2B7080F755DB0FDA77E8FEC10D37D34AD',
     )
     expect((wrapper.get('input[name="identity-name"]').element as HTMLInputElement).value).toBe(
       'Library steward',
@@ -555,7 +555,7 @@ describe('App', () => {
         .querySelector<HTMLElement>('[aria-label="Inspect Block height"]')
         ?.querySelector('a')
         ?.getAttribute('href'),
-    ).toBe('https://explorer.aknodes.com/AXONE-TESTNET/block/42')
+    ).toBe('https://explore.axone.xyz/AXONE-TESTNET/block/42')
   })
 
   it('records a rejected signature without inventing transaction evidence', async () => {

@@ -108,7 +108,7 @@ describe('useSurfaceDocket', () => {
       docket.entries.value.map((entry) => (entry.type === 'session' ? entry.event : entry.type)),
     ).toEqual(['disconnected', 'controller-changed', 'connected'])
     expect(docket.entries.value[0]).toEqual(
-      expect.objectContaining({ explorer: 'https://explorer.aknodes.com/AXONE-TESTNET' }),
+      expect.objectContaining({ explorer: 'https://explore.axone.xyz/AXONE-TESTNET' }),
     )
     wrapper.unmount()
   })
